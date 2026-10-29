@@ -1,0 +1,1192 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  /* Apple Cupertino Studio Palette (macOS Sequoia / Apple Pro Display) */
+  --bg:           #F5F5F7;
+  --surface:      #FFFFFF;
+  --surface-2:    #FAFAFC;
+  --surface-3:    #F0F0F5;
+  --glass:        rgba(255, 255, 255, 0.78);
+  --border:       rgba(0, 0, 0, 0.08);
+  --border-strong:rgba(0, 0, 0, 0.14);
+
+  /* Typography Ink */
+  --ink:          #1D1D1F;
+  --ink-secondary:#515154;
+  --muted:        #86868B;
+
+  /* Apple System Semantic Accents */
+  --primary:      #0071E3;
+  --primary-hover:#0077ED;
+  --primary-soft: rgba(0, 113, 227, 0.10);
+
+  --success:      #248A3D;
+  --success-bg:   rgba(52, 199, 89, 0.14);
+  --success-bd:   rgba(52, 199, 89, 0.32);
+
+  --warn:         #B25000;
+  --warn-bg:      rgba(255, 149, 0, 0.14);
+  --warn-bd:      rgba(255, 149, 0, 0.34);
+
+  --danger:       #D70015;
+  --danger-bg:    rgba(255, 59, 48, 0.12);
+  --danger-bd:    rgba(255, 59, 48, 0.28);
+
+  --radius:       18px;
+  --radius-md:    12px;
+  --radius-sm:    9px;
+  --pill:         980px;
+
+  --shadow-sm:    0 2px 10px rgba(0, 0, 0, 0.03), 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-card:  0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-seg:   0 2px 6px rgba(0, 0, 0, 0.10), 0 0 1px rgba(0, 0, 0, 0.08);
+
+  --font-sans:    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --font-mono:    "SF Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.47059;
+  letter-spacing: -0.011em;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.num, code, .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   APPLE FROSTED GLASS GLOBAL NAVBAR & TELEMETRY BAR
+   ========================================================================== */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.cmd-bar {
+  height: 52px;
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.cmd-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cmd-brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2C2C2E 0%, #1D1D1F 100%);
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.cmd-brand-sub {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+/* macOS Segmented Navigation Track */
+.cmd-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  padding: 3px;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: var(--pill);
+}
+
+.cmd-tab {
+  position: relative;
+  height: 28px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--pill);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: all 0.18s cubic-bezier(0.25, 0.1, 0.25, 1);
+  white-space: nowrap;
+}
+
+.cmd-tab:hover {
+  color: var(--ink);
+}
+
+.cmd-tab.active {
+  color: var(--ink);
+  font-weight: 600;
+  background: #FFFFFF;
+  box-shadow: var(--shadow-seg);
+}
+
+.cmd-tab.active::after {
+  display: none;
+}
+
+.cmd-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-selector-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(118, 118, 128, 0.10);
+  border: 1px solid transparent;
+  border-radius: var(--pill);
+  padding: 3px 12px;
+  height: 32px;
+  transition: background 0.15s ease;
+}
+
+.site-selector-group:hover {
+  background: rgba(118, 118, 128, 0.15);
+}
+
+.site-selector-group label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0;
+}
+
+.site-selector-group select {
+  width: auto;
+  min-width: 155px;
+  border: none;
+  background: transparent;
+  padding: 0 4px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.site-selector-group select:focus {
+  outline: none;
+}
+
+.role-pills {
+  display: inline-flex;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: var(--pill);
+  padding: 3px;
+  gap: 2px;
+}
+
+.role-pill {
+  border: none;
+  background: transparent;
+  padding: 0 11px;
+  height: 26px;
+  border-radius: var(--pill);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.role-pill:hover {
+  color: var(--ink);
+}
+
+.role-pill.active {
+  background: #FFFFFF;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-seg);
+}
+
+/* Status Telemetry Sub-bar */
+.status-ribbon {
+  min-height: 38px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.status-ribbon-left,
+.status-ribbon-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.telemetry-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-secondary);
+}
+
+.telemetry-item strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.telemetry-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border-strong);
+}
+
+/* ==========================================================================
+   MAIN STUDIO WORKSPACE & BENTO SURFACES
+   ========================================================================== */
+.workspace {
+  flex: 1;
+  padding: 20px 24px 28px;
+  max-width: 1640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.page-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.page-bar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.page-bar-title h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.page-bar-title span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.page-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Apple Bento Card / Sheet */
+.sheet, .card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.sheet-flush {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.sheet-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(250, 250, 252, 0.65);
+  flex-wrap: wrap;
+}
+
+.sheet-head h2, .card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+
+.sheet-head-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ==========================================================================
+   APPLE KPI READOUT STRIP
+   ========================================================================== */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.kpi-val {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-sub {
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+}
+
+/* ==========================================================================
+   CONTROLS, INPUTS, APPLE PILL BUTTONS & SEGMENTED CONTROLS
+   ========================================================================== */
+label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="file"],
+select {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="file"] {
+  padding: 5px 10px;
+  height: auto;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18);
+}
+
+button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: var(--pill);
+  border: none;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.16s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+button:hover:not(:disabled), .btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-0.5px);
+}
+
+button:active:not(:disabled), .btn:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.secondary, .btn.secondary {
+  background: rgba(118, 118, 128, 0.12);
+  color: var(--ink);
+}
+
+button.secondary:hover:not(:disabled), .btn.secondary:hover {
+  background: rgba(118, 118, 128, 0.18);
+}
+
+button.tinted, .btn.tinted {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+button.tinted:hover:not(:disabled), .btn.tinted:hover {
+  background: rgba(0, 113, 227, 0.16);
+}
+
+button.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+button.danger:hover:not(:disabled) {
+  background: rgba(255, 59, 48, 0.20);
+}
+
+button.sm, .btn.sm {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* Segmented Control (macOS style) */
+.segmented {
+  display: inline-flex;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: var(--pill);
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmented button {
+  height: 28px;
+  padding: 0 13px;
+  border-radius: var(--pill);
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.segmented button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--ink);
+  transform: none;
+}
+
+.segmented button.active {
+  background: #FFFFFF;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-seg);
+}
+
+/* Filter Pill Row */
+.filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-pill {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--pill);
+  border: 1px solid transparent;
+  background: rgba(118, 118, 128, 0.10);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-pill:hover:not(:disabled) {
+  background: rgba(118, 118, 128, 0.16);
+  color: var(--ink);
+  transform: none;
+}
+
+.filter-pill.active {
+  background: var(--ink);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   APPLE TABLES & DATA SHEETS
+   ========================================================================== */
+.table-scroll {
+  overflow-x: auto;
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  vertical-align: middle;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(250, 250, 252, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+tbody tr:hover {
+  background: rgba(0, 113, 227, 0.035);
+}
+
+tbody tr.selected {
+  background: rgba(0, 113, 227, 0.08);
+}
+
+/* ==========================================================================
+   BADGES & PILLS (Apple Semantic Tint)
+   ========================================================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.badge.ok, .badge.existing {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge.warn, .badge.proposed {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge.missing, .badge.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge.info {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* ==========================================================================
+   SPLIT-SCREEN STUDIO WORKBENCH
+   ========================================================================== */
+.split {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.analysis-split {
+  display: grid;
+  grid-template-columns: minmax(400px, 43%) 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .split, .analysis-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cad-pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  position: sticky;
+  top: 68px;
+}
+
+.cad-pane-bar {
+  padding: 12px 16px;
+  background: rgba(250, 250, 252, 0.85);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cad-pane-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cad-legend {
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+
+.cad-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+}
+
+.cad-Swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.viewer {
+  height: 540px;
+  background: linear-gradient(180deg, #FAFAFC 0%, #F2F2F7 100%);
+  position: relative;
+}
+
+/* Sheet Tabs inside Right Pane */
+.sheet-pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.sheet-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  background: rgba(250, 250, 252, 0.85);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.sheet-tab {
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sheet-tab:hover:not(:disabled) {
+  background: rgba(118, 118, 128, 0.08);
+  color: var(--ink);
+  transform: none;
+}
+
+.sheet-tab.active {
+  color: #FFFFFF;
+  background: var(--ink);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   COLLAPSIBLE DRAWER / POPOVER PANEL
+   ========================================================================== */
+.drawer-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+/* ==========================================================================
+   BANNERS & ALERTS
+   ========================================================================== */
+.banner {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.banner.error {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-bd);
+  color: var(--danger);
+}
+
+.banner.warn {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-bd);
+  color: var(--warn);
+}
+
+.banner.info {
+  background: var(--primary-soft);
+  border: 1px solid rgba(0, 113, 227, 0.22);
+  color: var(--primary);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Elevation Profile Grid */
+.elev-4grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .elev-4grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.elev-face-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--surface-2);
+}
+
+.elev-face-card h3 {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
+}
+
+/* Suggestion inline row */
+.suggest-box {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.suggest-item:last-child {
+  border-bottom: none;
+}
+
+/* Apple Calibration Category Cards */
+.calib-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .calib-bento-grid { grid-template-columns: 1fr; }
+}
+
+.calib-bento-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.calib-bento-card:hover {
+  border-color: rgba(0, 113, 227, 0.35);
+  background: #FFFFFF;
+}
+
+.calib-bento-card.active {
+  background: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.14);
+}
+
+/* Additional Apple Studio Layout & Segmented Control Aliases */
+.pane-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(250, 250, 252, 0.72);
+  flex-wrap: wrap;
+}
+
+.pane-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row.between {
+  justify-content: space-between;
+}
+
+.wrap-gap {
+  flex-wrap: wrap;
+}
+
+.gap-sm {
+  gap: 10px;
+}
+
+.gap-xs {
+  gap: 6px;
+}
+
+.seg-group {
+  display: inline-flex;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: var(--pill);
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.seg-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--pill);
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.seg-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--ink);
+  transform: none;
+}
+
+.seg-btn.active {
+  background: #FFFFFF;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-seg);
+}
+
+.btn.quiet, button.quiet {
+  background: rgba(118, 118, 128, 0.12);
+  color: var(--ink);
+}
+
+.btn.quiet:hover:not(:disabled), button.quiet:hover:not(:disabled) {
+  background: rgba(118, 118, 128, 0.18);
+}
+
+.btn.quiet.danger, button.quiet.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  max-height: 580px;
+  overflow-y: auto;
+}
+
+.sr-legend-bar {
+  padding: 8px 20px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+}
+
+.analysis-inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.suggest-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.suggest-chip {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.badge.face-pill {
+  background: rgba(118, 118, 128, 0.12);
+  color: var(--ink-secondary);
+}
+
+/* ==========================================================================
+   4-SIDED ELEVATION BLUEPRINT SVG (ElevationStrip.tsx)
+   ========================================================================== */
+.elev-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.elev-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.elev-pane {
+  background: linear-gradient(180deg, #FAFAFC 0%, #F4F4F8 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.elev-pane:hover {
+  border-color: var(--primary);
+  background: #FFFFFF;
+  box-shadow: var(--shadow-sm);
+}
+
+.elev-single-wrap {
+  background: linear-gradient(180deg, #FAFAFC 0%, #F4F4F8 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+
+.elev-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.elev-face-title {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.elev-grid {
+  stroke: rgba(0, 0, 0, 0.07);
+  stroke-dasharray: 2, 2;
+  stroke-width: 0.8;
+}
+
+.elev-tick {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--muted);
+  text-anchor: end;
+}
+
+.elev-tower {
+  fill: rgba(0, 113, 227, 0.05);
+  stroke: #1D1D1F;
+  stroke-width: 1.4;
+}
+
+.elev-brace {
+  stroke: rgba(29, 29, 31, 0.45);
+  stroke-width: 0.85;
+}
+
+.elev-dev-label {
+  font-family: var(--font-mono);
+  font-size: 8.2px;
+  font-weight: 600;
+}
+
+.elev-caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  padding-top: 4px;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.dot.existing { background: #0d9488; }
+.dot.proposed { background: #d97706; }
+.dot.missing  { background: #dc2626; }
+
+.seg-count {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: var(--pill);
+  background: rgba(0, 0, 0, 0.07);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-left: 3px;
+}
+
+

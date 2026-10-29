@@ -1,0 +1,14 @@
+$ ========== TELKOMSEL ANTENNAS ==========
+SEC-2.76    CYL  0.30  25.0  0.80  0.80  $ Sector antenna 2.76 m
+SEC-1.50    CYL  0.26  15.0  0.45  0.45  $ Sector antenna 1.50 m
+$ ========== IOH ANTENNAS ==========
+IOH-SEC-2.0 BOX  0.30  20.0  0.60  0.60  $ Panel antenna 2.0 m
+$ ========== MW DISHES ==========
+MW-0.6      SH1  0.60  30.0  0.28  0.28  $ Microwave dish 0.6 m
+MW-1.2      SH1  1.20  60.0  1.13  1.13  $ Microwave dish 1.2 m
+$ ========== MOUNTING ==========
+SECTOR-FRAME-A GRID 3.00 150.0 1.20 1.20 $ Sector frame
+RRU-01      BOX  0.40  25.0  0.20  0.20  $ Remote radio unit
+COEFFICIENTS
+BOX 1.4
+CYL 1.2

@@ -1,0 +1,1409 @@
+ANCILLARY
+
+$ Update record
+$ 1-10-93 NL Andrew SHX10 horn antenna added; signs of Cmx reversed.
+$ Dim is dimension used for gust factoring, see clause 5.3.2 BS8100
+$ 10-8-98 ANC.lib created for total update DE
+
+$ *** NOTE FOR DYNAMIC PROBLEMS THE MASS LOADS MUST BE INPUT IN TONNES ****
+$ *** THE mass NOTED BELOW ARE IN KG FOR USE ONLY IN THE TWR FILE      ****
+$ ***************************************************************************
+$ ---------------------------------------------------------------------------
+$ ANCILLARIES are drawn from unit shapes in the mstower.icn file
+$ ICONS are scaled from dx dy dz if stated otherwise as before using Dim and areas
+$==============================SMARTFREN==================================================
+$name type        Dim   mass     af       asf    aice  zre  xcg  xicg fcx fcy fzm icon  dx  dy    dz
+$  (units)          m    kg      m2       m2      m2    m    m    m 
+
+$============================================= LIBRARY MITRATEL ============================================
+
+$--------------------------------------------------TELKOMSEL---------------------------------------------
+$ SECTOR ANTENNA
+$ name        type  Dim    mass    af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2     m2    m    m    m 
+SEC-3.00      BOX  3.00   30    0.900    0.4500   0    0    0    0     1    1    1    14   0.150   0.300  3.00   $ SECTORAL 3.00 M $ INC ALL TENANT
+SEC-2.90      BOX  2.90   30    1.073    0.4930   0    0    0    0     1    1    1    14   0.170   0.370  2.90
+SEC-2.76      BOX  2.769  45.6  1.188    0.543    0    0    0    0     1    1    1    14   0.429  0.196  2.769  $ ASI4518R10V06
+SEC-2.72      BOX  2.702  61    1.348    0.54     0    0    0    0     1    1    1    14   0.499  0.199  2.702  $ ASI4518R10V06
+SEC-2.75      BOX  2.75   27    0.825    0.3190   0    0    0    0     1    1    1    14   0.116   0.300  2.75   $ SECTORAL 2.75 M $ INC ALL TENANT
+SEC-2.50      BOX  2.5    12    0.65     0.27     1.85 0    0    0     1    1    1    14   0.15   0.28   2.5    $ SECTORAL 2.50 M $ INC ALL TENANT
+SEC-2.00      BOX  2.00   12    0.35     0.10     0.87 0    0    0     1    1    1    14   0.15   0.18   2.0    $ SECTORAL 2.00 M $ INC ALL TENANT
+SEC-1.99      BOX  1.999  34.9  0.756    0.328    0    0    0    0     1    1    1    14   0.378  0.164  1.999  $ K80010888
+SEC-2.09      BOX  2.099  41.7  0.942    0.411    0    0    0    0     1    1    1    14   0.449  0.196  2.099  $ ASI4518R42v06
+SEC-1.9       BOX  1.9    9     0.35     0.10     0.87 0    0    0     1    1    1    14   0.15   0.18   2.0    $ SECTORAL 1.90 M $ INC ALL TENANT
+SEC-1.8       BOX  1.8    9     0.34     0.17     0    0    0    0     1    1    1    14   0.079  0.155  2.17   $ SECTORAL 1.80 M $ INC ALL TENANT
+SEC-1.46      BOX  1.468  26.3  0.512    0.244    0    0    0    0     1    1    1    14   0.349  0.166  1.468  $ HUAWEI AMB4520R0V06
+SEC-1.41      BOX  1.412  30.9  0.42501  0.25416  0    0    0    0     1    1    1    14   .301   0.180  1.412  $ CVV65ASX-M
+SEC-1.36      BOX  1.365  18.8  0.367    0.117    0    0    0    0     1    1    1    14   0.269  0.086  1.365  $ ADU451816V02
+SEC-1.3       BOX  1.3    5     0.20     0.09     0.40 0    0    0     1    1    1    14   0.079  0.326  1.306  $ SECTORAL 1.30 M $ INC ALL TENANT
+SEC-1.0       BOX  1.0    4     0.16     0.11     0.40 0    0    0     1    1    1    14   0.11   0.16   1.0    $ SECTORAL 1.00 M $ INC ALL TENANT
+GSM0.3        CYL  0.278  1.8   0.043    0.019    0    0    0    0     1    1    1    14   0.069  0.154  0.278  $ INC ALL TENANT
+GSM0.6        CYL  0.603  8.5   0.181    0.092    0    0    0    0     1    1    1    14   0.152  0.300  0.603  $ INC ALL TENANT
+GSM1.0        CYL  0.970  11.0  0.171    0.074    0    0    0    0     1    1    1    14   0.076  0.176  0.970  $ INC ALL TENANT
+GSM1.2        CYL  1.272  18.2  0.298    0.088    0    0    0    0     1    1    1    14   0.069  0.235  1.272  $ INC ALL TENANT
+GSM1.3        CYL  1.334  19.0  0.400    0.200    0    0    0    0     1    1    1    14   0.152  0.300  1.334  $ INC ALL TENANT
+GSM1.4        CYL  1.390  19.5  0.418    0.252    0    0    0    0     1    1    1    14   0.181  0.301  1.390  $ INC ALL TENANT
+GSM1.5        CYL  1.503  20.0  0.451    0.228    0    0    0    0     1    1    1    14   0.152  0.300  1.503  $ INC ALL TENANT
+GSM1.9        CYL  1.933  22.0  0.505    0.282    0    0    0    0     1    1    1    14   0.146  0.261  1.933  $ INC ALL TENANT
+GSM2.0        CYL  1.999  26.5  0.830    0.480    0    0    0    0     1    1    1    14   0.24   0.415  1.999  $ INC ALL TENANT
+GSM2.3        CYL  2.256  26.2  0.636    0.410    0    0    0    0     1    1    1    14   0.182  0.282  2.256  $ INC ALL TENANT
+GSM2.4        CYL  2.533  27.2  0.714    0.461    0    0    0    0     1    1    1    14   0.182  0.282  2.533  $ INC ALL TENANT
+GSM2.5        CYL  2.533  28.2  0.714    0.461    0    0    0    0     1    1    1    14   0.182  0.282  2.533  $ INC ALL TENANT
+GSM2.6        CYL  2.622  37.4  0.786    0.398    0    0    0    0     1    1    1    14   0.152  0.300  2.622  $ INC ALL TENANT
+GSM2.7        CYL  2.693  44.0  1.015    0.440    0    0    0    0     1    1    1    14   0.169  0.377  2.693  $ INC ALL TENANT
+GSM3.0        CYL  2.951  50.5  1.270    0.510    0    0    0    0     1    1    1    14   0.196  0.429  2.951  $ INC ALL TENANT
+SEC-0.965     BOX  0.965  24    0.4536   0.1737   0    0    0    0     1    1    1    14   0.470  0.180  0.965 $ SECTORAL AAU5336
+SEC-2.695     BOX  2.695  58.0  1.210    0.555    0    0    0    0     1    1    1    14   0.206  0.449  2.695  $ SECTORAL 2.695x0.449x0.206  
+
+
+$ RRU/FILTER/COMBINER/JUNCTION
+RRU-0.557    BOX  0.557  36.7  0.222    0.106   0 0 0 0 1 1 1 100 0.190 0.398 0.557
+RRU-0.56     BOX  0.560  25.0  0.250    0.074   0 0 0 0 1 1 1 100 0.133 0.447 0.560 $ INC ALL TENANT
+RRU-0.42     BOX  0.425  19    0.1275   0.06375 0 0 0 0 1 1 1 14  0.350 0.150 0.425 $ZTE R8984E
+RRU-0.41     BOX  0.418  22.6  0.191    0.066   0 0 0 0 1 1 1 100 0.159 0.458 0.418 $ INC ALL TENANT
+RRU-0.4010   BOX  0.40   20    0.1200   0.0300  0 0 0 0 1 1 1 14  .300  0.100 0.400 $RRU3938 $ INC ALL TENANT
+RRU-0.4015   BOX  0.40   21    0.1200   0.0600  0 0 0 0 1 1 1 14  .300  0.150 0.400 $RRU5502 $ INC ALL TENANT
+COMB-0.36    BOX  0.362  13.5  0.105342 0.02916 0 0 0 0 1 1 1 14  0.291 0.108 0.362 $ASC1921VG09A $ INC ALL TENANT
+COMB-0.28    BOX  0.280  10.0  0.054    0.019   0 0 0 0 1 1 1 100 0.065 0.190 0.280 $ INC ALL TENANT
+FILT-0.45    BOX  0.450  24    0.112    0.070   0 0 0 0 1 1 1 100 0.165 0.250 0.450 $ INC ALL TENANT
+RRU-0.466    BOX  0.466  25.0  0.160    0.066   0 0 0 0 1 1 1 100 0.142 0.343 0.466 $ISAT
+FILT-0.350   BOX  0.350  25.0  0.066    0.049   0 0 0 0 1 1 1 100 0.140 0.190 0.350 $ISAT
+RRU          BOX  0.400  25.0  0.120    0.040   0 0 0 0 1 1 1 100 0.100 0.300 0.400 $ INC ALL TENANT
+
+   RRU-480.356.140  BOX    0.480 23  0.171  0.067  0  0  0  0  1  1 1 502 0.067 0.356 0.480 $TSEL  
+   RRU-400.300.100  BOX    0.400 26  0.120  0.040  0  0  0  0  1  1 1 502 0.100 0.300 0.400 $3839 & 3826  
+   RRU-430.400.125  BOX    0.430 15  0.172  0.054  0  0  0  0  1  1 1 502 0.125 0.400 0.430 $SF  
+
+$==== SURGE =====
+$FIBERHOME
+RF-1.7       CYL  1.7  26   0.850     0.272     0    0    0    0     1    1    1    11   0.15   0.18   2.0 
+
+$ZTE
+RF-1.5       CYL  1.5  20.2 0.747     0.270     0    0    0    0     1    1    1    11   0.180   0.498   1.5 
+RRU-0.400    BOX  0.40 17   0.144     0.052     0    0    0    0     1    1    1    10   0.130   0.360   0.400
+GPS          CYL  0.10 0.75 0.012     0.012     0    0    0    0     1    1    1    10   0.109   0.109   0.112
+
+$--------------------------------------------------SMARTFREN--------------------------------------------- 
+$ SECTOR ANTENNA
+$ name        type  Dim    mass    af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2     m2    m    m    m 
+SEC-2.53      BOX  2.53   49    0.886     0.527   0    0    0    0     1    1    1    14   0.35   0.208  2.533 $COMMSCOPE RV4PX310R-V2
+SEC-2.44      BOX  2.449  22.2  0.7383   0.4439   0    0    0    0     1    1    1    14   .301   0.181  2.449 $ CVV65CSX-M 
+IBS-2.69      BOX  2.69   49    1.205    0.5057   0    0    0    0     1    1    1    14   .188   0.448  2.69  $ SECTORAL 2.69 M (IBS)
+IBS-2.07      BOX  2.07   35    1.136    0.3415   0    0    0    0     1    1    1    14   .165   0.549  2.07  $ SECTORAL 2.07 M (IBS)
+IBS-1.6       BOX  1.6    20    0.472    0.232    0    0    0    0     1    1    1    14   0.145  0.295  1.60  $ SECTORAL 1.60 M (IBS)
+SEC-1.5       BOX  1.5    22    0.3930   0.1740   0    0    0    0     1    1    1    14   .262   0.116  1.50  $ SECTORAL 1.50 M
+
+$ RRU/FILTER/COMBINER/JUNCTION
+RRU-0.45     BOX   0.450  8     0.1575   0.0720  0 0 0 0 1 1 1 14  0.350 0.160 0.450 $FZNI
+RRU-0.43     BOX   0.430  21    0.172    0.0537  0 0 0 0 1 1 1 14  .400  0.125 0.430 $R8978
+JUNC-0.25    BOX   0.25   15    0.075    0.036   0 0 0 0 1 1 1 14  .30   0.12  0.25  $JUNCTION0.25A
+
+
+
+$--------------------------------------------------H3I---------------------------------------------
+$ SECTOR ANTENNA
+$ name        type  Dim    mass    af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2     m2    m    m    m 
+SEC-1.95      BOX  1.954  27.3  0.631    0.029    0    0    0    0     1    1    1    14   0.323  0.089  1.954 $ADU451902V06
+
+
+
+$--------------------------------------------------INDOSAT---------------------------------------------
+$ SECTOR ANTENNA
+$ name        type  Dim    mass    af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2     m2    m    m    m 
+SEC-2.69     BOX  2.69   29    1.0184   0.3698   0    0    0    0     1    1    1    14   .138   0.380  2.68   $ SECTORAL 2.6M ISAT
+SEC-2.58      BOX  2.58   32    0.883    0.524    0    0    0    0     1    1    1    14   0.210  0.354  2.49   $ ANTENNA MODERN ISAT 2.5M
+
+$ RRU/FILTER/COMBINER/JUNCTION
+RRU-0.48       BOX    0.485  21    0.1795   0.0825   0 0 0 0 1 1 1 14  .380  0.17  0.485 $ RRU3959
+RRU-0.466      BOX    0.466  15    0.159838 0.066172 0 0 0 0 1 1 1 100 .170  0.380 0.485 $ RRUISAT 
+FILT-0.35      BOX    0.35   12    0.0665   0.0490   0 0 0 0 1 1 1 100 .150  0.200 0.350 $ FILTERISAT
+COMB-0.45      BOX    0.45   15    0.189    0.0630   0 0 0 0 1 1 1 100 .150  0.200 0.350 $ COMBINERISAT
+
+
+
+$--------------------------------------------------IOH---------------------------------------------
+$ SECTOR ANTENNA
+$ name        type  Dim    mass   af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2    m2    m    m    m 
+SEC-IOH      BOX  2.685   40   0.964   0.478    0     0    0    0     1    1    1     14   0.178  0.359  2.685  $ SECTORAL 2.685 IOH
+
+
+
+$--------------------------------------------------XL---------------------------------------------
+$ SECTOR ANTENNA
+$ name        type  Dim    mass    af     asf    aice  zre  xcg  xicg  fcx  fcy  fzm  icon    dx     dy    dz
+$(units)             m     kg     m2      m2     m2    m    m    m 
+SEC-2.5020     BOX  2.50   25    0.5000   0.2500   0    0    0    0     1    1    1    14   .100   0.200  2.50   $ RF2.5XL
+SEC-1.3015     BOX  1.30   13    0.1950   0.0650   0    0    0    0     1    1    1    14   .05    0.150  1.30   $ RF1.3XL
+
+
+$--------------------------------------------------MW ALL TENANT---------------------------------------------
+
+$ 1. MW SOLID
+$ SHIELDED ONE PIECE WITH PLANAR RADOME---------------------------------------------
+$ name     type      Dim   mass af      asf  aice  zref   xcg    xicg  fcx fcy fmz icon
+$                    m      kg    m2     m2     m2    m     m      m 
+SH1PR-1   SHIELDED  0.3    13.3 0.14   0.1    0.0    0    0       0      1   1   1   3 $ MW 0.3
+SH1PR-2   SHIELDED  0.6    20.2 0.385  0      2.72   0.   -.035   -.035  1   1   1   3 $ MW 0.6
+SH1PR-3   SHIELDED  0.9    48   0.636  0.282  0.96   0    -.035   -.035  1   1   1   3 $ MW 0.9
+SH1PR-4   SHIELDED  1.2    82   1.170  0      8.00   0.    .013   -.013  1   1   1   3 $ MW 1.2
+SH1PR-6   SHIELDED  1.8    132  2.620  0      16.0   0.   -.213   -.213  1   1   1   3 $ MW 1.8
+SH1PR-7   SHIELDED  2.0    153  3.142  1.948  11.6   0    -.213   -.213  1   1   1   3 $ MW 2.0
+SH1PR-8   SHIELDED  2.4    208  4.66   0      36.3   0.   -.371   -.371  1   1   1   3 $ MW 2.4
+SH1PR-9   SHIELDED  2.6    217  5.309  3.104  19.6   0    -.371   -.371  1   1   1   3 $ MW 2.6
+SH1PR-10  SHIELDED  3.0    250  7.29   0      50.4   0.   -.465   -.465  1   1   1   3 $ MW 3.0
+SH1PR-12  SHIELDED  3.7    386  10.51  5.25   38.9   0    -0.480  -0.48  1   1   1   3 $ MW 3.7
+SH1PR-13  SHIELDED  4.0    421  12.74  6.82   41.36  0    -0.510  -0.51  1   1   1   3 $ MW 4.0
+SH1PR-15  SHIELDED  4.6    780  16.42  8.21   57.8   0    -0.570  -0.57  1   1   1   3 $ MW 4.6
+SH1PR-16  SHIELDED  6.7    900  33.83  11.21  84.2   0    -0.770  -0.77  1   1   1   3 $ MW 6.7
+
+$ 2. GRID
+$ STANDARD ONE PIECE WITHOUT RADOME--------------------------------------------
+$ name      type    Dim  mass   af     asf     aice  zref xcg  xicg  fcx fcy fmz icon
+$                     m   kg    m2     m2      m     m    m 
+GRID-2     GRID     0.6   21.6 0.680  0.43    0.83   0  -0.176 -0.176 1   1   1   6
+GRID-3     GRID     0.9   27   1.425  0.645   1.25   0  -0.124 -0.124 1   1   1   6
+GRID-4     GRID     1.2   38   2.485  1.125   4.97   0  -0.133 -0.133 1   1   1   6
+GRID-5     GRID     1.5   45   2.375  1.075   2.08   0  -0.176 -0.176 1   1   1   6
+GRID-6     GRID     1.8   54   2.85   1.29    2.5    0  -0.176 -0.176 1   1   1   6
+GRID-8     GRID     2.4   102  4.97   2.25    9.94   0  -0.266 -0.266 1   1   1   6
+GRID-10    GRID     3     120  7.79   3.54    15.58  0  -0.374 -0.374 1   1   1   6
+GRID-12    GRID     3.7   184  11.4   5.18    22.80  0  -0.390 -0.390 1   1   1   6
+GRID-15    GRID     4.6   293  17.55  7.97    35.1   0  -0.464 -0.464 1   1   1   6
+
+$ 3. MOUNTING
+MOUNT-3.0    SH1    3.0    66.75 0.076 0.076    0  0  0  0  1  1  1  30  0.076  0.076  3.000 $ MOUNTING 3 M
+MOUNT-2.5    CYL    2.5    61    .1908 .1908    0  0  0  0  1  1  1  30
+MOUNT-2.0    SH1    2.0    57.73 0.076 0.076    0  0  0  0  1  1  1  30  0.076  0.076  2.000 $ MOUNTING 2 M
+MOUNT-1.5    CYL    1.5    50    .1144 .1144    0  0  0  0  1  1  1  30
+MOUNT-1.0    SH1    1.0    49.40 0.076 0.076    0  0  0  0  1  1  1  30  0.076  0.076  1.000 $ MOUNTING 1 M
+MOUNT-0.6    CYL    0.6    40    .0458 .04578   0  0  0  0  1  1  1  30
+MOUNT-0.4    SH1    0.4    34.08 0.076 0.076    0  0  0  0  1  1  1  30  0.076  0.076  0.400 $ MOUNTING MW
+RMOUNT-4.00  UNITY   4.00   141.90  0.1815  0.1815 0 0 0 0 1 1 1 501 4.00 4.00 0.0605
+RMOUNT-3.00  UNITY   3.00   106.43  0.1815  0.1815 0 0 0 0 1 1 1 501 3.00 3.00 0.0605
+RMOUNT-2.30  UNITY   2.30   81.59  0.1815  0.1815 0 0 0 0 1 1 1 501 2.30 2.30 0.0605
+RMOUNT-2.10  UNITY   2.10   74.50  0.1815  0.1815 0 0 0 0 1 1 1 501 2.10 2.10 0.0605
+RMOUNT-2.00  UNITY   2.00   70.95 0.1815  0.1815 0 0 0 0 1 1 1 501 2.00 2.00 0.0605
+RMOUNT-1.66  UNITY   1.66   58.89  0.1815  0.1815 0 0 0 0 1 1 1 501 1.66 1.66 0.0605
+RMOUNT-1.40  UNITY   1.40   49.67  0.1815  0.1815 0 0 0 0 1 1 1 501 1.66 1.66 0.0605
+
+$ ANDREW
+$ GRIDPAK ANTENNA >= 1427 mHz--------------------------------------------------            
+$ name     type      Dim   mass af      asf  aice  zref   xcg    xicg  fcx fcy fmz icon
+$                    m    kg    m2     m2      m2    m    m      m 
+ GPKH-4     GRID     1.8   23   1.35   0.649   1.5   0   -0.124 -0.124 1   1   1   6
+ GPKH-3     GRID     1.   23   0.75   0.36   2.7   0   -0.124 -0.124 1   1   1   6
+ GPKH-6     GRID     2     90   3.18   1.52    6.36  0   -0.138 -0.138 1   1   1   6
+ GPKH-8     GRID     2.4  128   4.55   2.18    9.10  0   -0.146 -0.146 1   1   1   6
+ GPKH-10    GRID     3    190   7.29   3.50   14.58  0   -0.286 -0.286 1   1   1   6
+ GPKH-13    GRID     4    235  12.52   6.01   25.04  0   -0.373 -0.373 1   1   1   6
+
+$ ANDREW
+$ GRIDPAK ANTENNA <= 960 mHz---------------------------------------------------            
+$ name     type      Dim   mass af      asf  aice  zref   xcg    xicg  fcx fcy fmz icon
+$                    m    kg    m2     m2      m2    m    m      m 
+$ GPKL-6     GRID     2     42   3.18   0.904   6.36  0   -0.286 -0.286 1   1   1   6
+ GPKL-6     GRID     2     22   2.18   0.904   6.36  0   -0.286 -0.286 1   1   1   6
+ GPKL-10    GRID     3     72   7.29   3.29   14.58  0   -0.323 -0.323 1   1   1   6
+ GPKL-13    GRID     4     96  12.52   2.66   15.04  0   -0.436 -0.436 1   1   1   6
+
+$ ANDREW
+$ HORN ANTENNA----------------------------------------------------------------- 
+$ name     type      Dim   mass af      asf  aice  zref   xcg    xicg  fcx fcy fmz icon
+$                    m    kg    m2     m2      m2    m    m      m 
+ SHX10PM    AHORN    6.93 840   12     12     49.6   0.8 -0.241  0.002 1   1   1   7
+ SHX10SM    AHORN    6.93 1142  12     12     57.3   0.8 -0.038 -0.100 1   1   1   7
+$    __PM: platform mount; _SM: side mount
+
+$
+$ *** THE mass NOTED BELOW ARE IN KG FOR USE ONLY IN THE TWR FILE      ****
+$ ***************************************************************************
+$ -----------------------------------------------------------------------------
+
+$  ANCILLARIES FOR CASTLE TRANSMISSION formerly BBC ENGINEERING -TOWERS -------
+$
+$name type     Dim   mass  af    asf   aice zre  xcg  xicg fcx fcy fzm icon dx dy dz
+$  (units)       m    kg    m2    m2    m2   m    m    m 
+ 
+ A0001 CYL       3.2  10.25  .16   .16  0    0    0     0     1  1  1   35   .1  .1 1      $ LF Datatrack
+ A0002 CYL       1    50     .2    .2   0    0    0     0     1  1  1   36  1   1   1      $ MF Sloping wire, nominal values
+ A0003 SHIELDED   .3  10     .14   .1    .4  0    0     0     1  1  1    8   .3  .3  .3    $ SHF 0.3m HP dish, Precision
+ A0004 SHIELDED   .6  18.5   .385  .385 1.7  0    -.035 -.035 1  1  1    8   .4  .6  .6    $ SHF 0.6m HP dish
+ A0005 STANDARD   .6   7     .3    .12  0.7  0    -.165 -.201 1  1  1    1   .6  .6  .6    $ SHF 0.6m satellite dish
+ A0006 STANDARD   .6   7     .32   .2    .7  0    -.056 -.056 1  1  1    1   .6  .6  .6    $ SHF 0.6m standard dish
+ A0007 SHIELDED   .9  40     .8    .25  2.36 0    -.075 -.075 1  1  1    8   .9  .9  .9    $ SHF 0.9m HP dish, Precision
+ A0008 STANDARD   .9  40     .9    .384 1.44 0    -.075 -.075 1  1  1    1   .9  .9  .9    $ SHF 0.9m SATELLITE DISH TEMP
+ A0009 STANDARD   .9  40     .56   .21  1.62 0    -.075 -.075 1  1  1    1   .9  .9  .9    $ SHF 0.9m STANDARD DISH  TEMP No radome
+ A0010 SHIELDED  1.2  48    1.13   .72  4.52 0    -.013 -.013 1  1  1    3  1.2 1.2 1.2    $ SHF 1.2m HP dish, Precision
+
+ A0011 STANDARD  1.2  47    1.13   .48  3.76 0    -.117 -.117 1  1  1    1  1.2 1.2 1.2    $ SHF 1.2m standard dish, No radome
+ A0012 SHIELDED  1.8 103    3     1.14  9.25 0    -.213 -.213 1  1  1    3  1.8 1.8 1.8    $ SHF 1.8m HP dish, Precision
+ A0013 STANDARD  1.8  61    3      .39  7.22 0    -.041 -.041 1  1  1    1  1.8 1.8 1.8    $ SHF 1.8m standard dish, No radome
+$$ removed-A0014 SHIELDED 2.1 135    3.5   0    20    0    -.041 -.041 1  1  1  3   2.1 2.1 2.1 $ SHF 2.1 HP DISH TEMP REMOVED
+ A0015 SHIELDED  2.4 225    5.4   2.42 18.4  0    -.371 -.371 1  1  1    3  2.4 2.4 2.4    $ SHF 2.4m HP dish, Precision
+ A0016 STANDARD  2.4 114    5.1   1    10.2  0    -.041 -.041 1  1  1    5  2.4 2.4 2.4    $ SHF 2.4m standard dish
+ A0017 STANDARD  3   144    7.84  1.94 15.7  0    -.465 -.465 1  1  1    5  3   3   3      $ SHF 3.0m standard dish
+ A0018 SHIELDED  3.1 423    7.55  3.7  18.7  0    -.465 -.465 1  1  1    3  3.1 3.1 3.1    $ SHF 3.1 HP DISH TEMP, Precision
+ A0019 SHIELDED  3.7 386   11.5  5.33  32.6  0    -.480 -.480 1  1  1    3  3.6 3.6 3.6    $ SHF 3.6m HP dish, Precision
+ A0020 CYL        .4  25     .3    .3    .6  0    0     0     1  1  1   20  1.3  .15 .15   $ UHF 1.5 GHz shrouded yagi
+
+ A0021 SH1      17  6000   19.14 19.14 60    0    0     0     1  1  1   30                 $ UHF 1000kW ERP cylinder
+ A0022 SH1     10.5 3500    9.45  9.45 29.7  0    0     0     1  1  1   30                 $ UHF 100kW ERP cylinder
+$ A0023 CYL        .4  13.5   .27   .27  0.8  0    0     0     1  1  1   25  3.2 3.2 3.2    $ UHF 12 element yagi
+ A0023 CYL        .04  13.5   .04   .04  0.8  0    0     0     1  1  1   25  3.2 3.2 3.2    $ UHF 12 element yagi
+ A0024 SH1      10  3000    4.00  4.00 12.5  0    0     0     1  1  1   30   .4  .4 10     $ UHF 16L cardoid in 16" cylinder
+ A0025 SH1      12  3800   10.8  10.80 34    0    0     0     1  1  1   30   .9  .9 12     $ UHF 16L cardoid in 3' cylinder
+ A0026 CYL        .4 16.5    .33   .33  1    0    0     0     1  1  1   26  3   3   3      $ UHF 18 element yagi
+$ removed-A0027 SH1  4.9  2000   7.35  7.35 23    0    0     0     1  1  1  30              $ 250kW ERP-REMOVED
+ A0028 CYL        .4  16.5   .33   .33  1    0    0     0     1  1  1   28  4.2 4.2 4.2    $ UHF 24 element yagi
+ A0029 CYL       4.9 2000   7.35  7.35 23    0    0     0     1  1  1   30                 $ 250kW ERP
+ A0030 CYL       3    20     .30   .30  1    0    0     0     1  1  1  135  1   1   1.5    $ UHF 3dB colinear
+ A0031 CYL        .4  25     .4    .4   1.2  0    0     0     1  1  1   41  1   1   2.5    $ UHF 4 stack array
+
+ A0032 SH1       3.4 1000   1.36  1.36  4.3  0    0     0     1  1  1   30   .4  .4 3.4    $ UHF 4L cardoid in cylinder
+ $
+ A0033 SHIELDED   .6  41     .385  .385 1.7  0    -.035 -.035 1  1  1    3   .6  .6  .6    $ SHF 0.6m HP dish TEMP
+ A0034 SH1      10.5 3500   9.45  9.45 30    0    0     0     1  1  1   30                 $ UHF 100kW ERP cylinder
+ A0035 CYL        .5  20     .35   .35  0    0    0     0     1  1  1  135  1   1   2.7    $ UHF 6 dB colinear
+ A0036 CYL        .4  14.5   .31   .35   .6  0    0     0     1  1  1   29  2.5 1    .9    $ UHF 6 element yagi
+ A0037 CYL        .4  15.2   .36   .36   .8  0    0     0     1  1  1  291  1.4 1.4 1.4    $ UHF 8 element yagi
+ A0038 CYL        .5  35     .60   .60  1.2  0    0     0     1  1  1   38  5   1   5      $ UHF 8 stack array  
+ A0038PMD CYL     .5  35     1.5   1.75  3.5  0    0     0     1  1  1   40  5   1   5     $ UHF 8 stack array 
+ A0039 SH1       6.4 1900   2.56  2.56  8    0    0     0     1  1  1   30   .4  .4 6.4    $ UHF 8L cardoid in cylinder
+ A0040 CYL        .5  32     .56   .56  1    0    0     0     1  1  1  135  1   1   5.4    $ UHF 9 dB colinear
+ A0041 CYL       2.29 37     .57   .57  1.8  0    0     0     1  1  1   14   .12 .25 2.3   $ UHF cellular colinear
+
+ A0042 CYL        .1  14     .25   .25   .6  0    0     0     1  1  1   51  1.4 1     .6   $ UHF centre-fed folded dipole
+ A0043 CYL        .5  14     .28   .28   .6  0    0     0     1  1  1  143  1.4 1.4 1.4    $ UHF log periodic
+ A0044 CYL       1.07 14     .45   .23  1.5  0    0     0     1  1  1   13   .23 .45 1     $ UHF Panel
+ A0045 BOX       3.6 150   17.28  1    37    0    0     0     1  1  1   10   .3 4.8  3.6   $ UHF passive reflector
+ A0046 CYL       2.8   6     .14   .14  1.3  0    0     0     1  1  1   30   .05 .05 2.8   $ UHF PCN omni colinear
+ A0047 CYL       1.6  12.5   .3    .3   .8   0    0     0     1  1  1   14   .1  .16 1.9   $ UHF PCN screened colinear
+ A0048 CYL        .5  23     .51   .51   1   0    0     0     1  1  1  148  1.4 1.4  1.4   $ UHF RBL 2-stack log periodic
+ A0049 CYL        .5  36     .92   .92  1.8  0    0     0     1  1  1  149  1.4 1.4  1.4   $ UHF RBL 4-stack log periodic
+ A0050 CYL        .5  35     .94   .94  1.8  0    0     0     1  1  1   14   .6  .6    3   $ UHF screened colinear
+
+ A0051 CYL       1    13.5   .45   .25  1.35 0    0     0     1  1  1   13   .25 .45   1   $ UHF Screened panel 
+ $
+ A0053 BOX       2    55    1.54   .9   4.8  0    0     0     1  1  1   12   .5  .76 2     $ UHF trough
+ A0054 CYL        .5 125    1.78  1.78  0    0    0     0     1  1  1   54  1   1   1      $ UHF 2L unshrouded cardoid
+ A0055 CYL       4.2 125     .6    .6   2.5  0    0     0     1  1  1   55  1   1    .66   $ UHF 4L unshrouded cardoid
+
+ A0055M CYL       10.0 250     .75    .75   2.5  0    0     0     1  1  1   55  1   1    2.5   $ UHF 4L unshrouded cardoid
+
+ A0056 CYL        .4  14     .28   .28  0    0    0     0     1  1  1   56  1   1    .2    $ VHF 2 element yagi
+ A0057 CYL        .2  16     .35   .35  0    0    0     0     1  1  1   44  1.6 1    1.6   $ VHF 2 stack dipole array
+ A0058 CYL        .2  35     .7    .7   0    0    0     0     1  1  1   40  1   1   2      $ VHF tier 3/4 dipoles on pole
+ A0059 CYL        .5  16     .46   .46  0    0    0     0     1  1  1  135  1   1   3      $ VHF 3 dB colinear
+ A0060 CYL        .4  15     .33   .33  0    0    0     0     1  1  1  292  1   1   1.2    $ VHF 3 element yagi
+
+ A0061 CYL        .4  15     .43   .43  0    0    0     0     1  1  1  293  2.9 1   1.65   $ VHF 4 element yagi
+ A0062 CYL        .2  35     .7    .7   0    0    0     0     1  1  1   62  6   6   6.1    $ VHF 4 stack dipole array
+ A0063 CYL       5.2   4     .25   .25  0    0    0     0     1  1  1   34  1   1    1     $ VHF 6 dB colinear
+ A0064 CYL        .4  15     .31   .31  0    0    0     0     1  1  1   29  3   3    .9    $ VHF 6 element yagi
+ A0065 CYL       1.6   3.1   .04   .1   0    0    0     0     1  1  1   51   .6  .6  .6    $ VHF CD3 paging dipole
+ A0066 CYL        .1  16     .3    .3   0    0    0     0     1  1  1   51  1.4 1    .6    $ VHF dipole
+ A0067 CYL        .5  45     .65   .65  0    0    0     0     1  1  1  143  1.7 1.7 1.7    $ VHF log periodic
+ A0068 CYL        .2  35     .35   .35  0    0    0     0     1  1  1   44  1.6 1   1.6    $ VHF loop dipole pair
+$$ Removed-A0069 CYL        .2  35     .4    .4   0    0    0     0     1  1  1   53                 $ VHF loop dipole pair on pole
+ A0070 CYL       2     7.5   .1    .1    .3  0    0     0     1  1  1   30   .05 .05 2     $ VHF/UHF End-fed dipole 7506
+ A0071 CYL       2     7.5   .1    .1    .3  0    0     0     1  1  1   30   .05 .05 2     $ VHF/UHF End-fed dipole 7506
+
+ $A0071 CYL        .56   .25  .02   .02   .6  0    0     0     1  1  1   30   .02 .02  .56  $ UHF screened dipole 7511/Nicks email
+ A0072 CYL       1    10     .1    .1    .3  0    0     0     1  1  1   42  1    .5   .5   $ Sira omni element  
+ A0073 CYL       3    98    2.1   0.7   6.6  0    0     0     1  1  1   91  1   1    1     $ VHF,Crossbow,square tower,tier of one panel
+ A0074 CYL       3    98    2.1   0.7   6.6  0    0     0     1  1  1   91  1   1    1     $ VHF,Crossbow,square tower,tier of one panel
+ A0075 CYL       3    98    2.1   0.7   6.6  0    0     0     1  1  1   91  1   1    1     $ VHF,Crossbow,square tower,tier of one panel
+ A0076 CYL       3    98    2.1   0.7   6.6  0    0     0     1  1  1   91  1   1    1     $ VHF,Crossbow,square tower,tier of one panel
+
+ $$ A0077 NOT REQD ON NTL SITES ONLY
+ A0078 CYL        .5  10     .045  .1   .1   0    0     0     1  1  1   14   .01 .1   .47  $ UHF mini screened colinear panel
+ A0079 CYL        .1    .1   .01   .01  .03  0    0     0     1  1  1   30   .05 .05  .1   $ SHF .15 GPS/BT MOBILE TEMP
+ A0080 CYL       2.7   1     .15   .15  0    0    0     0     1  1  1  135  1   1    2.7   $ VHF dual-frequency colinear
+
+ A0081 STANDARD  1.2  55    2.1    .6   5    0    0     0     1  1  1    1  1.2 1.2  1.2   $ SHF 1.2m satellite dish, Andrew
+ A0082 BOX       1    15     .3    .5   1.5  0    0     0     1  1  1    9  1   1    1     $ SHF Nurad horn
+ A0083 CYL        .5  20     .25   .25  0    0    0     0     1  1  1   56  2.1 1    .9    $ UHF cardiod array
+ A0084 CYL        .5  20     .3    .3   0    0    0     0     1  1  1   56  2.5 1   1.3    $ VHF cardiod array
+ A0085 CYL       1    15     .54   .3   0    0    0     0     1  1  1   50   .38 1.5 .75   $ UHF corner reflector
+ A0086 SHIELDED  1.1  77    1.7    .8   4    0    -.013 -.013 1  1  1    3  1.1 1.1 1.1    $ SHF 1.1m HP dish
+ A0087 CYL        .4  20     .3    .3   0    0    0     0     1  1  1  292  1.4 1    .9    $ UHF 3 element yagi
+ A0088 CYL       1.8   8     .14   .14  0    0    0     0     1  1  1   88  1.8 1.8 1.8    $ UHF 7345 horizontal scanning stack
+ A0088RYT CYL    8.4   50     .84   .84  0    0    0     0     1  1  1   88  0.20 8.4 0.5    $ UHF 7345 horizontal scanning stack
+ A0089 CYL        .4   4.6   .33   .33   .6  0    0     0     1  1  1   27  2.5 2.5 2.5    $ UHF 14 element yagi
+ A0090 SHIELDED   .4  10.4   .3    .2    .6  0    0     0     1  1  1    3   .4  .4  .4    $ SHF.4m HP dish
+
+ $A0091 STANDARD   .3   5     .1    .1    .2  0    -.056 -.056 1  1  1    1   .3  .3  .3    $ SHF 0.3m standard dish temp
+ A0092 BOX       1    20    1     1     6    0    0     0     1  1  1  100  1   1   1      $ MISC NON-ANTENNA
+ A0093 CYL        .4  13.5   .27   .27   .6  0    0     0     1  1  1  291  3.5 1    .9    $ UHF 8 element yagi
+
+
+ A0096 CYL       1     3     .25   .1   .5   0    0     0     1  1  1   14   .07 .25 1     $ Ionica Panel
+ A0097 CYL       1.8 100    2.75  2.74 5     0    0     0     1  1  1  101  1.8 1.8 1.8    $ 16L patch flat plate in radome
+ A0098 CYL       5   175     .75   .75 3     0    0     0     1  1  1   58  1   1    .8    $ UHF unshrouded 8L cardoid                                                                                $ 8L unshrouded cardiod
+
+
+$$ removed A0101 SHIELDED  1.2  77    1.17  .937 8     0    .013 -.013  1  1  1    3                 $ 1.5 HP dish
+
+ A0103 BOX       1    20    1     1     0    0    0     0     1  1  1  100                 $ MISC NON-ANTENNA
+ A0104 CYL       2.5  30     .50   .50  0    0    0     0     1  1  1  135   2   2   2     $ Jaybeam type 7507 end fed dipole
+ A0105 CYL        .3   1     .01   .01  .1   0    0     0     1  1  1   30    .01 .10 .27  $ screened dipole ATV
+$ A0106 STANDARD                                                                           $ 16m dia satellite dish ground mounted
+$ A0107 STANDARD                                                                           $ 9m dia satellite dish ground mounted
+$ A0108 STANDARD                                                                           $ 7m dia satellite dish ground mounted
+$ A0109 STANDARD 4   245  10.51  5.851 44.8   0  -0.165 -0.165 1 1   1   1                 $ 4m dia satellite dish
+$ A0110 STANDARD                                                                           $ 11m dia satellite dish ground mounted
+
+$A0113 SHIELDED  2   127   2.620  2.168 16   0    -.213 -.213 1  1  1    3                 $ Nera 2m dia HP dish
+ A0114 SHIELDED  3   245   7.29   4.47  50.4 0    -.465 -.465 1  1  1    3  3   3   3      $ 3m dia HP dish
+ A0115 CYL       1     4    .1     .1     .2 0    0     0     1  1  1   37                 $ Discone
+
+
+
+$ A0119 STANDARD   $ 5.6m satellite dish
+$ A0120 STANDARD   $ 3.7m satellite dish
+ A0121 SHIELDED  2   103    2.62  2.168 16   0    -.213 -.213 1  1  1    3                 $ 2m HP dish
+$ A0122 
+$ A0123 
+$ A0124 STANDARD   $ 7.2m satellite dish
+  A0125 STANDARD 2.4 114   4.66   3.717 20.6  0   -.041 -.041 1  1   1   1 2.4 2.4 2.4     $ 2.4m satellite dish
+  A0126 STANDARD  .8  60    .9    0      4.5  0   -.075 -.075 1  1   1   1  .9  .9  .9     $ SHF 0.8m satellite dish
+
+$ name type     Dim   mass  af    asf   aice zre  xcg  xicg fcx fcy fzm icon dx dy dz
+
+ A0129 CYL       1    30    1     0     0    0    0     0     1  1  1   14   .3 1   1.5    $ Atlantic Telecom Panel
+ A0130 CYL       1    15     .78   .5   2.3  0    0     0     1  1  1   14   .2  .3 2.3    $ UHF dual-polar GSM panel
+
+$$ removed A0133 CYL       1     0    1     0     0    0    0     0     1  1  1   14   .2  .22 .7    $ UHF 1.35x.45x.225 dual-polar
+
+$A0135 CYL       1     0    1     0     0    0    0     0     1  1  1   14  .6   .6 1.5    $ UHF Tetra screened dipole
+ A0136 CYL       1    20    1      .25  1.5  0    0     0     1  1  1   14  .25  .4 1      $ UHF Tetra screened dipole
+ A0137 SHIELDED  0.5  12.5 0.385  0.385 2.72 0    0     0     1  1  1    3  .3   .5  .5    $ 0.5m HP dish
+ A0138 SHIELDED  0.25  8   0.85   0.85  1.72 0    0     0     1  1  1    3  .2   .25 .25   $ 0.25 HP dish
+ A0139 CYL      1    10    1      0     0    0    0     0     1  1  1   14  .05  .31 .35   $ panel antenna 7636
+$ A0140   $ UHF dual-polar
+
+ A0142 CYL      1.9   4.5   .3    .1    .77  0    0     0     1  1  1   14  .05  .16 1.8   $ UHF dual-polar PCN panel
+$ name type     Dim   mass    af    asf     aice zre  xcg  xicg   fcx fcy fzm icon dx dy dz
+ A0442 BOX       .5    10    .02     .02     0    0    0     0     1  1    1  100 .1  .1  .2  $ AMPLIFIER MISC NON-ANTENNA
+
+ A0442A        BOX   .75   10   .3       .3      0    0    0     0     1  1  1  100 .3    .3    .75   $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442B        BOX   .3    5    .09      .09     0    0    0     0     1  1  1  100 .3    .3    .3    $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442_TMA_NTS BOX   .28   5   0.0784   0.0784   0    0    0     0     1  1  1  100 .28   .28   .28   $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442_ASC_NTS BOX   .3    5   0.045    0.045    0    0    0     0     1  1  1  100 .075  .15   .3    $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442_RAU_NTS BOX   .411  7   0.133986 0.059184 0    0    0     0     1  1  1  100 .144  .326  .441  $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442_DONOR   BOX   .4    8   0.16     0.04     0    0    0     0     1  1  1  100 .1    .4    .4    $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442_SERVING BOX   .3    15  0.53     0.234    0    0    0     0     1  1  1  100 .18   .4   1.3    $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442SIGN     BOX  0.6    25  0.72     0.72     0    0    0     0     1  1  1  100 1.2  0.03  0.6    $ AMPLIFIER MISC NON-ANTENNA (EDY)
+ A0442SPC      BOX  0.97  15   0.4116   0.2156  .029  0    0     0     1  1  1  100  0.22 0.42 0.98   $ UHF Dual Polar/Dual Band Panel 7600
+ A0442PHP      BOX  1.09  11.5 0.545    0.2616  .029  0    0     0     1  1  1  100  0.24 0.50 1.09   $ UHF Dual Polar/Dual Band Panel 7600
+
+
+ A0143 CYL      2.7   1     .1    .1    .3   0    0     0     1  1  1   30  .05  .05 2.7   $ VHF/UHF End-fed dipole 7536
+ 
+ 
+ A0146 BOX      1    15     .54   .3   0     0    0     0     1  1  1   50 1.3  2.2  1.1   $ UHF corner reflector
+ 
+ 
+$$ removed A0153 
+ 
+ A0151 SHIELDED  .6  41     .45  0     2.72  0    -.035 -.035 1  1  1    3  .6   .6   .6   $ SHF 0.6m HP dish
+
+$$ removed A0153
+$$ removed A0154 CYL      1    100   1     0     0     0    0     0     1  1  1   70                 $ Delta array
+
+ A0156 CYL      1     13.5 .45   .23   1.36    0    0     0     1  1  1   13  .23 .45  1     $ UHF DTT panel
+ A0157 CYL      2.3   15   .7    .46   2.28    0    0     0     1  1  1   14  .2 .29 2.3     $ UHF Dual Polar/Dual Band Panel 7600
+
+ A0157ALCATEL  CYL      1.35   18   0.45    .3   1.45    0    0     0     1  1  1   14  .08 0.35 1.35     $ UHF Dual Polar/Dual Band Panel 7600
+ A0157ERIC     CYL      2.10   25   0.63    .21   2.52    0    0     0     1  1  1   14  .10 0.30 2.10     $ UHF Dual Polar/Dual Band Panel 7600
+ A0157NTS      CYL      1.942  20   0.30101  0.1942   1.52    0    0     0     1  1  1   14  .155 0.155 1.942     $ UHF Dual Polar/Dual Band Panel 7600
+ A0157NTS_NEW  CYL      1.302  20   0.30101  0.1942   1.52    0    0     0     1  1  1   14  .69 0.155 1.302     $ UHF Dual Polar/Dual Band Panel 7600
+ A0157HWI     CYL      2.10  25   0.63  0.21   2.52    0    0     0     1  1  1   14  .10 0.30 2.10     $ UHF Dual Polar/Dual Band Panel 7600
+
+A0157INDO     CYL      2.50  25   0.60  0.25   2.52    0    0     0     1  1  1   14  .10 0.40 2.50     $ UHF Dual Polar/Dual Band Panel 7600
+A0157IPEMDA   CYL      5.00  30   2.5  1.00   4.00    0    0     0     1  1  1   30  .5 0.5 5.00     $ UHF Dual Polar/Dual Band Panel 7600
+A0157TELKOM   CYL      2.58  20   0.67596  0.29928   2.52    0    0     0     1  1  1   14  .116 0.262 2.58     $ UHF Dual Polar/Dual Band Panel 7600
+A0157WIN      CYL      2.0  20   0.60  0.30   2.52    0    0     0     1  1  1   14  .150 0.300 2.00     $ UHF Dual Polar/Dual Band Panel 7600
+A0157ESIA     CYL      2.5  30   1.0  1.0   2.52    0    0     0     1  1  1   14  .400 0.400 2.50     $ UHF Dual Polar/Dual Band Panel 7600
+A0157SECTOR   CYL      2.75  60   0.7425  0.7425   2.52    0    0     0     1  1  1   14  .275 0.275 2.750     $ UHF Dual Polar/Dual Band Panel 7600
+A0157HUTC     BOX      2.10  25   0.63  0.21   2.52    0    0     0     1  1  1   14  .10 0.30 2.10     $ UHF Dual Polar/Dual Band Panel 7600
+
+$===RF_ANTENA=============================================================================================================================================
+$ name       type      Dim   mass  af(dy*dz)  asf(dx*dz)   aice zre  xcg  xicg fcx fcy fzm icon dx dy dz
+RRU2.7        BOX      2.70  32    0.8576     1.1256   0    0    0     0     1  1  1   14  .42 0.32 2.68     $ UHF Dual Polar/Dual Band Panel 7600
+RRU0.5        BOX      0.50  23    0.091   0.2155   0    0    0     0     1  1  1   14  .431 0.182 0.5     $ UHF Dual Polar/Dual Band Panel 7600
+RRU0.6        BOX      0.60  20    0.107484   0.243588   0    0    0     0   1  1  1   14  .383 0.169 0.636     $ UHF Dual Polar/Dual Band Panel 7600
+A0157TKS      BOX      2.50  25   0.67596  0.29928   2.52    0    0     0     1  1  1   14  .116 0.262 2.58     $ UHF Dual Polar/Dual Band Panel 7600
+A0157TKS01     BOX      2.00  20   0.524  0.232   0   0    0     0     1  1  1   14  .116 0.262 2.00     $ UHF Dual Pol==2
+A0157TKS02     BOX      1.5   15   0.393  0.174   0   0    0     0     1  1  1   14  .116 0.262 1.50     $ UHF Dual Pol==1,5
+A0157TKS03     BOX      1.3   13   0.3406  0.1508   0   0    0     0     1  1  1   14  .116 0.262 1.30     $ UHF Dual Pol==1,3
+A0157TKS04     BOX      1.0   10   0.262  0.116   0   0    0     0     1  1  1   14  .116 0.262 1.00     $ UHF Dual Pol==1,0 
+A0157TKS05     BOX      2.9   28   0.8584  0.4553   0   0    0     0     1  1  1   14  .157 0.296 2.9     $ UHF Dual Pol==2.9
+A0157TKS06     BOX      3.0   40   0.8584  1.1256   0   0    0     0     1  1  1   14  .42 0.32 3     $ UHF Dual Pol==2.9
+A0157TKS1.3   BOX      1.3   25   0.3406  0.1508   0   0    0     0     1  1  1   14  .116 0.262 1.30     $ UHF Dual Pol
+A0157TKS2     BOX      2.00  25   0.524  0.232   0   0    0     0     1  1  1   14  .116 0.262 2.00     $ UHF Dual Pol
+$ name         type   h\D   mass  af  afi  aice  zref xcg  xicg   fcx fcy fmz ishape
+A0157MT       CYL     2.5    15   .03  .19  0.0   0    0     0    1   1  1   30
+A0157WIN     BOX      0.7  20   0.21  0.105   2.52    0    0     0     1  1  1   14  .150 0.300 0.70     $ UHF Dual Polar/Dual Band Panel 7600
+
+$=====================================================================================================================================================
+A0157WINS     BOX      1.4  20   0.42  0.21   2.52    0    0     0     1  1  1   14  .150 0.300 1.40     $ UHF Dual Polar/Dual Band Panel 7600
+$$$BOX
+A0157TKS0.6      BOX      0.6  18.5   0.36  0.0696   0    0    0     0     1  1  1   14  .116 0.6 0.6     $ bujursangkar
+A0157TKS1.5      BOX      1.5  18.5   0.393  0.174   0    0    0     0     1  1  1   14  .116 0.262 1.5     $ UHF Dual Polar/Dual Band Panel 7600
+
+$===KAMUFLASE=============================================================================================================================================
+A0157TKS05     BOX      2.5   1.0   0.2798  0.0125   0   0    0     0     1  1  1   14  .005 0.1119 2.50     $ UHF Dual Pol
+
+$ name      type      Dim   mass af      asf  aice  zref   xcg    xicg  fcx fcy fmz icon
+$                     m     kg    m2     m2      m2    m    m      m 
+$ SH1PR-2   SHIELDED  0.6   18.5 0.318  0.159    .96  0    -.035  -.035 1   1   1   3
+
+
+A0160 SHIELDED  .6   41   .45  0      2.72    0    -.035 -.035 1  1  1    3                 $ SHF 0.6m HP dish
+
+$$ removed A0162
+ A0163 CYL       .4  13.5    .27   .27  0      0    0     0     1  1  1   61  2    .5  .5    $ Crossed log periodic pair
+
+ A0166 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   95  1   1   1      $ VHF DR radial fire 
+ A0167 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   95  1   1   1      $ VHF DR radial fire 
+ A0168 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   95  1   1   1      $ VHF DR radial fire 
+ A0169 CYL       3    98    2.0   0.7   6.6    0    0     0     1  1  1   94  1   1   1      $ VHF DR radial fire, NO FILLER PANEL
+ 
+ A0170 CYL       3.2   5   .175    .175 0.18   0    0     0     1  1  1   46  3   3   3.2    $ VHF DR BIII, 1 of 4 dipole on pole
+ A0171 CYL       3.2   5   .175    .2   0.18   0    0     0     1  1  1   47  3   3   3.2    $ VHF DR BIII, 1 of 2 dipole on pole
+
+ A0172 CYL       3.2   5   .175    .2   0.18   0    0     0     1  1  1   48  3   3   3.2    $ VHF DR BIII, 1 of 1 dipole on pole
+ A0173 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   96  1   1   1      $ VHF DR BII/III
+$    
+ A0200 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   95  1   1   1      $ VHF DR radial fire
+ A0201 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   96  1   1   1      $ VHF DR BII/III
+ A0202 CYL       3    98    2.1   0.7   6.6    0    0     0     1  1  1   96  1   1   1      $ VHF DR BII/III
+
+ A0220 CYL       3    40   .57     .57  1.79   0    0     0     1  1  1   30   .2  .2 3      $ VHF 2L DAB cylinder
+$A0221 CYL        6    69   1.2    1.2   3.58   0    0     0     1  1  1   30  .2  .2  6      $ VHF 4L DAB cylinder
+ $
+ A0240 CYL       2.3  15   .66     .46  2.4    0    0     0     1  1  1   14  .6  .6  2.6    $ UHF dual-polar/dual band GSM 7600
+ $
+ A0280 CYL       1     1.4  .135     .07  .42   0    0     0     1  1  1   33  .16 .16  .84   $ SF (Tele2) PANEL 
+
+ A0300 CYL       1    10    .4     .17   1     0    0     0     1  1  1   14   .17 .4 1.05   $ Sigma Tetra SPA410
+
+$A0301 BOX       1     5    .1      .06   .3   0    0     0     1  1  1   10   .5  .3  .3    $ UHF 10Ghz 1 stack
+$A0302 BOX       1     10   .2      .06   .3   0    0     0     1  1  1   15  1   1   1      $ UHF 10Ghz 2 stack
+$A0303 BOX       1     15   .3      .06   .3   0    0     0     1  1  1   16  1   1   1      $ UHF 10Ghz 3 stack
+$A0304 BOX       .45   1.5  .17     .08   .4   0    0     0     1  1  1   10   .1  .45 .38   $ UHF Suhner planar panel
+
+ A0306 SHIELDED  .3    7   .1      .1    .3     .3  0     0     1  1  1    3   .3  .3   .3   $ SHF 0.2m HP dish
+ A0307 CYL      1.7   20   .47     .16  1.27   0    0     0     1  1  1   14   .1  .3  1.7   $ UHF Orange dual polar/dual band panel 
+ A0308 CYL      1.7   11   .272    .106  .756  0    0     0     1  1  1   14   .06 .16 1.7   $ UHF Cellnet 3G panel
+ A0309 CYL      3.18  16   .76     .76   .58   0    0     0     1  1  1   30   .24 .24 3.2   $ UHF GSM dual polar/dual band omni
+ A0310 CYL      2.34  13   .54     .26  1.6    0    0     0     1  1  1   14   .1  .23 2.3   $ UHF Vodafone 3G panel (& 2xLNA's)
+
+ A0311 CYL      1.7   11   .272    .106  .756  0    0     0     1  1  1   14   .3  .16 1.7   $ UHF One 2 One 3G panel
+ A0312 CYL      1.7   11   .272    .106  .756  0    0     0     1  1  1   14   .3  .16 1.7   $ UHF TIW 3G panel
+ A0313 SHIELDED  .3   10   .1      .1    .1    .2   0     0     1  1  1    3   .2  .2   .2   $ SHF 0.12m HP dish 
+
+ A0315 CYL       .7   10   .1      .2    .2    0    0     0     1  1  1   56   .7  1    .7   $ VHF DR cardioid array
+ A0316 CYL       .15   5   .03     .02   .1    0    0     0     1  1  1  100   .15  .2  .15  $ RFU (ODU) unit
+ A0317 CYL      2.4   20   .69     .3   2.0    0    0     0     1  1  1   14   .12  .3 2.4   $ UHF Jaybeam Tri band GSM & PCN +UMTS dual polar
+ A0318 CYL      2.4   26   .8      .6   2.76   0    0     0     1  1  1   14   .24  .3 2.5   $ UHF Racal Tri band GSM & PCN +UMTS dual polar
+ A0319 CYL      3.3  175   .75     .75  3      0    0     0     1  1  1   57  1    1   1     $ UHF Unshrouded 6L cardoid 
+ A0320 CYL      1.7   20   .28     .28   .9    0    0     0     1  1  1   30   .17  .17 1.7  $ UHF Racal 5045 dual polar cluster
+ 
+ A0321 SHIELDED  .2   10   .1      .1    .3     .3  0     0     1  1  1    3   .2  .2   .2   $ SHF 0.18m HP dish
+ A0322 CYL      2     15   .55     .18  1.4    0    0     0     1  1  1   14   .1  .3  2     $ UHF Hutchison 3G type 2233 panel
+ A0323 CYL      1.7    5.5 .24     .07   .629  0    0     0     1  1  1   14   .05 .14 1.7   $ UHF Hutchison 3G type 2212 panel
+ A0324 CYL      1.6    5   .22     .06   .6    0    0     0     1  1  1   14   .05 .14 1.6   $ UHF Hutchison 3G type 2211 panel
+ A0325 CYL      1.3    4.5 .19     .07   .629  0    0     0     1  1  1   14   .05 .14 1.3   $ UHF Hutchison 3G type 2209 panel
+ 
+ A0326 SH1      6   1800   6     6     18.8   0    0    0     1  1  1   30  1    1   6     $ UHF Cylinder  6m
+ A0327 SH1      7   2100   7     7     22     0    0    0     1  1  1   30  1    1   7     $ UHF Cylinder  7m
+ A0328 SH1      8   2400   8     8     25.1   0    0    0     1  1  1   30  1    1   8     $ UHF Cylinder  8m
+ A0329 SH1     10   3000  10    10     31.4   0    0    0     1  1  1   30  1    1  10     $ UHF Cylinder 10m
+ A0330 SH1     11   3300  11    11     34.6   0    0    0     1  1  1   30  1    1  11     $ UHF Cylinder 11m
+ 
+ A0331 SH1     12   3600  12    12     37.7   0    0    0     1  1  1   30  1    1  12     $ UHF Cylinder 12m
+ A0332 SH1     13   3900  13    13     40.8   0    0    0     1  1  1   30  1    1  13     $ UHF Cylinder 13m
+ A0333 SH1     13.5 4050  13.5  13.5   42.4   0    0    0     1  1  1   30  1    1  13.5   $ UHF Cylinder 13.5m
+ A0334 SH1     14.5 4350  25.37 25.37  79.7   0    0    0     1  1  1   30  1.75 1.75 14.5 $ UHF Cylinder 14.5
+ A0335 SH1     15   4500  22.5  22.5   70.7   0    0    0     1  1  1   30  1.5  1.5  15   $ UHF Cylinder 15m
+
+ A0336 SH1     15   4800  28    28     88     0    0    0     1  1  1   30  1.75 1.75 16   $ UHF Cylinder 16m
+ A0337 SH1     16   5100  34    34    107     0    0    0     1  1  1   30  2    2    17   $ UHF Cylinder 17m
+ A0338 SH1     17.5 5250  26.25 26.25  82.5   0    0    0     1  1  1   30  1.5  1.5  17.5 $ UHF Cylinder 17.5m
+ A0339 SH1     18   5400  27    27     84.8   0    0    0     1  1  1   30  1.5  1.5  18   $ UHF Cylinder 18m
+ A0340 SH1     20.5 6150  41    41    129     0    0    0     1  1  1   30  2    2    20.5 $ UHF Cylinder 20.5m
+ 
+ A0341 SH1     21   6300  36.75 36.75 116     0    0    0     1  1  1   30  1.75 1.75 21   $ UHF Cylinder 21m
+ A0342 SH1     23.5 7050  41.13 41.13 129     0    0    0     1  1  1   30  1.75 1.75 23.5 $ UHF Cylinder 23.5m
+ A0343 SH1     27   8100  40.5  40.5  127     0    0    0     1  1  1   30  1.5  1.5  27   $ UHF Cylinder 27m
+ A0344 SH1      9   2700   8.1   8.1   25.4   0    0    0     1  1  1   30   .9   .9   9   $ UHF Cylinder  9m
+
+ A0346 CYL      1      11  0.55  0.4     0    0    0    0     1  1  1   14  .3 .275 2     $ temp orange dual band plane polar added by DFO  $ side area includes for 150mm width of mounting steel
+ A0347 UNITY   2.3     25  0.88  0     0.7    0    0    0     1  1  1   14  .253 .18  2.3 $ temp BTC 900/1800 GSM Thales 85X4DF $ side area includes for 130mm width of mounting steel.
+
+
+$ name type    Dim   mass  af   asf  aice zre  xcg  xicg fcx fcy fzm icon  dx  dy  dz  
+
+$$============================================================================================================
+ $$ The words DELTA CIRCLE & PLATFORM are RESERVED WORDS and ICON Numbers 500 to 510 are reserved for scaleable icons
+ $$ STANDARD FRAMES, These are automaticaly scaled by CTIDATA to fit the tower
+
+ DELTA       UNITY   18    70    .75   .75  0    0    0    0    1  1  18  500       $ DELTA frame   ALL
+ DELTA12     UNITY   12    70    .75   .75  0    0    0    0    1  1  12  500       $ DELTA frame   ALL
+ CIRCLE      UNITY   1     70    .65   .65  0    0    0    0    1  1  1  501       $ TORoid frame  TOR
+ CIRCLE-2    UNITY   1     70    .242  .242 0    0    0    0    1  1  1  501  $ TORoid frame  TOR $2"
+ PLATF3      UNITY   1     70   1.0   1.0   0    0    0    0    1  1  1  503       $ Triangular PLaTform  TPLT
+ PLATF4      UNITY   1    100   1.0   1.0   0    0    0    0    1  1  1  502  1  1  1  $ PLaTform      PLT
+ PLATF5      UNITY   1    150   2.6   0.8   0    0    0    0    1  1  1  502  2.6  0.8  4  $ PLaTform      PLT
+ PLATF55     UNITY   1    150   1.5   1.5   0    0    0    0    1  1  1  502  1.5  1.5  1  $ PLaTform      PLT
+ PLATF66     UNITY   1    275   2.9   2.9   0    0    0    0    1  1  1  502  2.9  2.9  1  $ PLaTform      PLT
+ PLATF77     UNITY   1    200   2.0   2.0   0    0    0    0    1  1  1  502  2  2  1  $ PLaTform      PLT
+ PLATF99     UNITY   1    175   1.9   1.9   0    0    0    0    1  1  1  502  1.9  1.9  1  $ PLaTform      PLT
+ PLATF88     UNITY   1    50   1.875   0.8   0    0    0    0    1  1  1  502  1.875  0.8  1  $ PLaTform      PLT
+ HEAD-FRAME   UNITY   1     70   1.37  1.37  0    0    0    0    1  1  1  504       $ Head Frame Circular
+ HEAD-FRAME-T  UNITY   1     70   1.37  1.37  0    0    0    0    1  1  1  505       $ Head Frame Triangular 
+ HEAD-FRAMEBTS UNITY   1     200   1.37  1.37  0    0    0    0    3  3  1  504       $ Head Frame Circular
+
+ BORDES     UNITY   1    500   5.0  5.0   0    0    0    0    1  1  1  502  5.0  5.0  1  $ PLaTform      PLT
+
+$============================================================================================================
+$utk mounting ring
+$ name       type   Dim    mass  af     asf     aice zre  xcg  xicg fcx  fcy  fzm icon  dx   dy    dz  
+$  CIRCLE    UNITY   1     70    .65   .65       0    0    0    0    1    1    1  501       $ TORoid frame  TOR
+ CIRCLE-9    UNITY  3.4    200   0.0510  0.0510   0    0    0    0    1    1    1   501   3.4  3.4   0.0150   $ POLYGON 
+ CIRCLE-10   UNITY  3.0    200   0.0450  0.0450   0    0    0    0    1    1    1   501   3.0  3.0   0.0150   $ POLYGON 
+ CIRCLE-12   UNITY  4.0    200   0.1500  0.1500   0    0    0    0    1    1    1   501   4.0  4.0   0.0300   $ POLYGON 
+ MO18-2IN    UNITY  1.8    200   0.1089  0.1089   0    0    0    0    1    1    1   501   1.8  1.8   2.0000   $ POLYGON 
+ MO20-2IN    UNITY  2.0    200   0.1210  0.1210   0    0    0    0    1    1    1   501   2.0  2.0   2.0000   $ POLYGON 
+ MO25-2IN    UNITY  2.0    200   0.15125 0.15125  0    0    0    0    1    1    1   501   2.5  2.5   2.0000   $ POLYGON 
+
+ $$=============================================================================================================
+ $$ Fixed size ancillaries
+ $$ FRAMES, modify data and scale to your requirements, DELTA, CIRCLE, PLATFORM, T-PLATFORM &
+ $$ HEAD-FRAME are reserved words
+ $$ The words DELTA CIRCLE & PLATFORM are RESERVED WORDS and ICON Numbers 500 to 510 are reserved for scaleable icons
+
+$ name      type   dim   mass af    asf   aice zref xcg  xicg  fca fcs fcm ICON dx dy dz
+$                  m     kg   m2    m2    m2   m    m    m                   
+ DELTA-1     UNITY   1    400    .75   .75  0    0    0    0    1    1    1  500   1    1    1   $ DELTA FRAME
+
+ CIRCLE-1    UNITY   1    200    .65   .65  0    0    0    0    1    1    1  501   1    1    1   $ CIRCULAR FRAME PAIR
+ CIRCLE-2    UNITY   .5    150    .65   .65  0    0    0    0    1    1    1  501   .5    .5    1   $ CIRCULAR FRAME PAIR
+ CIRCLE-MDN    UNITY   6.4    1920   .65   .65  0    0    0    0    1    1    1  501   6.4    6.4    1   $ CIRCULAR FRAME PAIR
+ CIRCLE-FRM  UNITY   1    200    .65   .65  0    0    0    0    1    1    1  501   2.5  2.5  1   $ TORoid FRAME Swansea Wales
+
+ CIRCLE-K    UNITY   2.0  100    4.7   4.7  0    0    0    0    1    1    1  501   2.0    2.0    3   $ CIRCULAR FRAME PAIR
+
+ PLATFORM-1   UNITY   1    300   1.0    1.0    0    0    0    0    1    1    1  502   1    1     1   $ PLaTform
+ PLATFORM-MDN  UNITY   2    900   2.0    2.0    0    0    0    0    1    1    1  502   1    2     3   $ PLaTform
+ PLATFORM-2   UNITY   1.1  100   0.20   0.20   0    0    0    0    1    1    1  502   2    2     1   $ PLaTform
+ PLATFORM-2.   UNITY   1.1  50    0.10   0.10   0    0    0    0    1    1    1  502   2    2     1   $ PLaTform
+ PLATFORM-3   UNITY   0.5  100   0.20   0.20   0    0    0    0    1    1    1  502   1.5  1.5   1   $ PLaTform
+ PLATFORM-399  UNITY   0.75 100   0.20   0.20   0    0    0    0    1    1    1  502   2    2     1   $ PLaTform
+ PLATFORM-3.   UNITY   0.5  50    0.20   0.20   0    0    0    0    1    1    1  502   1.5  1.5   1   $ PLaTform
+ PLATFORM-4   UNITY   1.1  100   0.30   0.30   0    0    0    0    1    1    1  502   3    3     1   $ PLaTform
+ PLATFORM-4.   UNITY   1.1  100   1.0    1.00   0    0    0    0    1    1    1  502   3    3     1   $ PLaTform
+ PLATFORM-5   UNITY   1.1  100   0.40   0.40   0    0    0    0    1    1    1  502   3.6 3.6    1   $ PLaTform
+ PLATFORM-6   UNITY   1.1  100   0.50   0.50   0    0    0    0    1    1    1  502   6.0 6.0    1   $ PLaTform
+ SLIM-PLAT    UNITY   1    352   1.49   1.49   6    0    0    0    1    1    1  502   2.4 2.4    1   $ Platform ESTIMATED
+ T-PLAT       UNITY   1    300   1.0    1.0    0    0    0    0    1    1    1  503   3    3     1   $ Triangular PLaTform ESTIMATED
+ PLATF-1    UNITY   1.2  100   0.20   0.20   0    0    0    0    1    1    1  502   3.2 3.2    1.2   $ PLaTform
+ PLATF-2    UNITY   1.2  100   0.20   0.20   0    0    0    0    1    1    1  502   4.0 4.0    1.2   $ PLaTform
+ PLATF-3    UNITY   1.2  100   0.20   0.20   0    0    0    0    1    1    1  502   6.0 6.0    1.2   $ PLaTform
+
+ SWANN-T1    UNITY   2.1  325   3.8   3.8   2.8  1.05 0    0    1    1    1  511   1    1    1   $ Platform for Swann type T1 TRIANGULAR
+ SWANN-C1    UNITY   1.1  325   1.8   1.8   5.1  0.55 0    0    1    1    1  512   1    1    1   $ Platform for Swann type C1 CIRCULAR
+ SWANN-HF-C  UNITY   1.26 280   1.37  1.37  2.1  0    0    0    1    1    1  504   1.5  1.5  1.2 $ Circular Head Frame Swann type
+ SWANN-GH-T  UNITY   1.8  275   3.97  3.97  9.9  0    0    0    1    1    1  505   2.65 2.65 1.8 $ Triangular Head Frame Swann type
+
+ ICE-SHIELD-1 UNITY  1    100    .2    .2    .5  0    0    0    1    1    1  510   1    1    1   $ ICE SHIELD 1m estimated
+ ICE-SHIELD-2 UNITY  1    350    .8    .8   2.0  0    0    0    1    1    1  510   2    2    2   $ ICE SHIELD 2m estimated
+  
+ DELMEC-D1    CYL    1.2  200    .2   .1    3.0  0    0    0    1    1    1  512   .8   .8   .8  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-D2    CYL    1.2  200    .1   .1    1.5  0    0    0    1    1    1  512   .8   .8   .8  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-D3    CYL    1.2  200    .1   .1    1.5  0    0    0    1    1    1  512   .5   .5   .8  $ Platform for DELMEC D1
+ DELMEC-D4    CYL    1.2  200    .1   .1    1.5  0    0    0    1    1    1  512   .4   .4   .8  $ Platform for DELMEC D1
+ DELMEC-D5    CYL    1.2  200    .2   .2    1.2  0    0    0    1    1    1  512   .8   .8   .8  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-D1B    CYL    1.2  200    .2   .2    3.0  0    0    0    1    1    1  512   .8   .8   .8  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-D6    CYL    1.2  100    .075   .075    1.2  0    0    0    1    1    1  512   .8   .8   .8  $ Platform for DELMEC D1 CIRCULAR
+ 
+$ name      type   dim   mass af    asf   aice zref xcg  xicg  fca fcs fcm ICON dx dy dz
+$                  m     kg   m2    m2    m2   m    m    m                   
+ DEL2M        SH1     2   100   1.6  1.6    6    0    0    0    1    1    1   30   .8   .8  2    $ SHROUD .8dia x 2m high
+ DEL1.5M      CYL     1.5  50    .45  .45   1.55 0    0    0    1    1    1   30   .3   .3  1.5  $ SHROUD .3dia x 1.5m high
+ DEL1.5GSM    CYL     1.5  26    .8   .6    2.76 0    0    0    1    1    1   14   .24  .3  1.5  $ DELMEC GSM Provisional
+ DEL1.5CHECK  CYL     1.5  26    .3   .3     .94 0    0    0    1    1    1   14   .2   .2  1.5  $ DELMEC Deflection Check GSM Provisional
+ DELMEC-BTS    CYL    1.0  200    .85   .85    3.0  0    0    0    1    1    1  512   0.8   0.8   1.0  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-BTS2    CYL    2.0  400    1.4   1.4    6.0  0    0    0    1    1    1  512   1.4   1.4   1.2  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-BTS3    CYL    4.0  800    2.0   2.0    12.0  0    0    0    1    1    1  512   2.0   2.0   1.2  $ Platform for DELMEC D1 CIRCULAR
+ DELMEC-BTS4    CYL    4.5  850    2.1   2.1    13.5  0    0    0    1    1    1  512   2.1   2.1   3.65  $ Platform for DELMEC D1 CIRCULAR
+
+
+$$=============================================================================================================
+
+$ name  type  Dim   mass    af  asf  aice  zre  xcg  xicg   fcx fcy fzm icon
+$  (units)    m     kg     m2    m2   m2   m    m     m 
+
+$--DAB DTV, CH5 & VHF -------------------------------------------------
+
+$DAB8    CYL 14.4  600   6.4   2.8   0    0    0     0     1  1  1  30 $ DAB 8 TIERS OF PODS
+ DAB8    CYL  1.8   75    .8    .35  0    0    0     0     1  1  1  30 $ DAB 8 TIERS OF PODS
+
+ DTV1  UNITY  1     20    .6    .3   0    0    0     0     1  1  1  13  .5 .5  1   $ 1 POD  
+ DTV3  UNITY  1     75   1.2    .9   0    0    0     0     1  1  1  30 $ 3 PODS GROUP
+ DTV4  UNITY  1     95   2.4   1.2   0    0    0     0     1  1  1  30 $ 4 PODS GROUP
+
+ CH5   UNITY  1     20    .6    .3   0    0    0     0     1  1  1  30 $ 1 POD  
+ CH53  UNITY  1     75   1.2    .9   0    0    0     0     1  1  1  30 $ 3 PODS GROUP
+
+ VHF1T   CYL  2    100   2.16   .83  0    0    0     0     1  1  1  12 $ 1 TIER VHF
+ VHF2T   CYL  5    250   3.9   1.6   0    0    0     0     1  1  1  12 $ 2 TIER VHF
+
+$VHF3T   CYL  5    400   6.2   2.5   0    0    0     0     1  1  1  30 $ 3 TIER VHF
+ VHF3T   CYL  2    133   2.1    .83  0    0    0     0     1  1  1  12 $ 3 TIER VHF
+
+$VHF4T   CYL 11    550   8.75  3.32  0    0    0     0     1  1  1  30 $ 4 TIER VHF
+ VHF4T   CYL  2    137   2.20   .85  0    0    0     0     1  1  1  12 $ 4 TIER VHF
+ 
+$VHF8T   CYL 23   1150  17.2   7     0    0    0     0     1  1  1  30 $ 8 TIER VHF
+ VHF8T   CYL  2    144   2.15   .875 0    0    0     0     1  1  1  12 $ 8 TIER VHF
+
+$VHF10T  CYL 28   1400  21.1   8.6   0    0    0     0     1  1  1  30 $10 TIER VHF
+$VHF10T  CYL  2    140   2.11   .86  0    0    0     0     1  1  1  12 $10 TIER VHF
+ VHF10T  CYL  3    140   3.11   .86  0    0    0     0     1  1  1  12 $10 TIER VHF
+
+$ name  type  Dim  mass    af  asf aice  zre  xcg  xicg   fcx fcy fzm icon
+$  (units)    m     kg     m2    m2   m2   m    m     m 
+
+$-- JOHN HANCOCK, Chicago -------------------------------------------------
+
+$  name type   Dim    mass  af    asf    aice zre  xcg   xicg fcx fcy fzm icon dx dy dz
+$  (units)       m       kg   m2     m2       m2    m    m     m 
+ CH44    CYL    10.44   227   3.414   3.414    0    0    0     0     1  1   1   30            $ 1/2 height CH44 14" SHROUD
+ DTV     CYL     7.16  3000  10.74   10.74     0    0    0     0     1  1   1   30            $ 1/2 HT DTV
+ FM-MAST CYL     1.7     50    .63     .2      0    0    0     0     1  1   1   92  .4 2  1.7 $ DAB VHF Panel 1 of 4
+ CYLIN   CYL     3.43     1  12.54   12.54     0    0    0     0     1  1   1   30            $ MAIN CYLINDER
+
+ CH2-1   CYL     1.36     1    .897    .897    0    0    0     0     1  1   1   30            $ CH2
+ CH2-2   CYL     3.04     1   2       2        0    0    0     0     1  1   1   30
+ CH2-3   CYL     6.09     1   4       4        0    0    0     0     1  1   1   30
+ CH2-4   CYL     3.74     1   2.47    2.47     0    0    0     0     1  1   1   30
+ CH2-5   CYL     6     5   1       1        0    0    0     0     1  1   1   30
+ CH2-5F   CYL    5     5   0.4       0.4        0    0    0     0     1  1   1   30
+
+$-- Rosemarkie, Lothian  ------------------------------------------------------
+
+A22     SH1  7.3  3500   9.45  9.45  0    0    0     0     1  1  1  30             $ UHF 100kW ERP cylinder
+
+$-- ECHO-PA, ECHO MAST WASHINGTON USA -----------------------------------------
+ 
+ A123  CYL  1.2    1546   7.06  7.06 14   0    0    0     1   1  1  30 $18-PD220/HALO
+ A124  CYL   .3      90    .55   .55  1   0    0    0     1   1  1  30 $ BEACON 
+ A125  CYL  1.2     200   6     6    12   0    0    0     1   1  1  30 $ SPRINT-6SECTOR-ESTIMATED
+ A126  CYL  1.2     500   6     6    12   0    0    0     1   1  1  30 $ SIDE ARMS-ESTIMATED
+ A127  CYL  6       200   1     1     2   0    0    0     1   1  1  30 $ MOBILE MEDIA
+
+$-- LLAND, LLANDDONA, NR BANGOR ----------------------------------------------
+
+ LLAND-PL CYL  .2   350    .75   .75  0   0    0     0     1  1  1  30 $ PLATFORM ESTIMATED
+
+$-- BLAEN, BLAEN PLWYF -------------------------------------------------------
+
+ A1230     SH1  13  3500   28.6  28.6 0   0    0     0     1  1  1  30 $ 2.2 dia SHROUD
+ BLAEN-PL CYL  .2   350    .75   .75  0   0    0     0     1  1  1  30 $ PLATFORM ESTIMATED
+
+$-- SUDBNEW, NEW ALAN DICK AT SUDBURY -----------------------------------------
+
+ A120    CYL 16.4  4000  18.3   18.3  0   0    0     0     1  1  1  30 $ ROUGH EQUIVALENT CYLINDER
+ A121  UNITY  4     800   7.5    7.5  0   0    0     0     1  1  1  30 $ SECTOR ARRAY
+ A122  UNITY  5     500   6      6    0   0    0     0     1  1  1  30 $ SECTOR ARRAY
+ SUDN   CYL   1     352   3.33  3.33  0   0    0     0     1  1  1  30 $ estimated
+
+$-- CARMEL, nr SWANSEA-------------------------------------------------
+
+ A119    SH1  7.1  3500  11.8  11.8   0   0    0     0     1  1  1  30 
+ CARMPL  CYL   .2   350    .75   .75  0   0    0     0     1  1  1  30
+ 
+$--HESSARY, NORTH HESSARY TOR -----------------------------------------
+
+ HESSPL CYL    .2   350    .75   .75  0   0    0     0     1  1  1  30 $ ESTIMATED
+
+$--REDRUTH-------------------------------------------------------------
+
+ A118    SH1  7.3  3500  12.45  12.45 0   0    0     0     1  1  1  30
+ A118B   SH1  1.17    0    .62    .62 0   0    0     0     1  1  1  30
+
+$--MIDHURST------------------------------------------------------------
+
+ A117 UNITY   7.7 2500  13.09 13.09  0    0    0     0     1  1  1  30 $ EXPOSED UHH 
+                       $7.7x1.7=13.09
+ MID-PL  CYL   .2  350   .75   .75   0    0    0     0     1  1  1  30 $ PLATFORM ESTIMATED
+
+$--MENDIP--------------------------------------------------------------
+
+$ A116 SH1   23.4 17300 35.7 35.7    0    0    0     0     1  1  1  30
+
+$--HEATHFIELD ---------------------------------------------------------
+
+HE-PL CYL     .2   350    .75   .75  0    0    0     0     1  1  1  30 $ ESTIMATED
+
+$--OXFORD -------------------------------------------------------------
+
+ A115 SH1   12.7  5000  22.86 22.86  0    0    0     0     1  1  1  30 $ 500 KW ERP
+OX-PL CYL     .2   350    .75   .75  0    0    0     0     1  1  1  30 $ ESTIMATED
+
+$--WENVOE -------------------------------------------------------------
+
+ A107 SH1   16.2 4500   35.64 35.64  0    0    0     0     1  1  1  30 $ UHF 500kW ERP   
+$ WENPL
+
+$-- SUTTON COLDFIELD --------------------------------------------------
+
+ A114  SH1   17   4775  41.48 41.48  0    0    0     0     1  1  1  30 $ 1000 kW ERP
+ SUTPL CYL    .2   350    .75   .75  0    0    0     0     1  1  1  30 $ ESTIMATED
+
+$-- BLUEBELL HILL -----------------------------------------------------
+ $ LEAVE AS CYL,JAMES BRENNAN 21/1/96
+ A113  CYL   13   2000   5.2   5.2   0    0    0     0     1  1  1  30 $ DAB ANTENNA
+BLUPL  CYL    1    200   1.50  1.5   0    0    0     0     1  1  1  30 $ estimated
+
+$--SANDALE ------------------------------------------------------------
+
+ A112  SH1   13.4 3420  12.06 12.06  0    0    0     0     1  1  1  30 $ UHF 16L CARDIOD 
+ SAPL  CYL    .2   350    .75   .75  0    0    0     0     1  1  1  30 $ ESTIMATED
+
+$--TACOLNESTON --------------------------------------------------------
+
+ A111  SH1   4.9  2000   7.35  7.35  0    0    0     0     1  1  1  30 $ 250kW ERP
+ TACPL CYL    .2   350    .75   .75  0    0    0     0     1  1  1  30 $ ESTIMATED
+
+$--ROWRIDGE -----------------------------------------------------------
+
+ A110  SH1  15    6000  24.75 24.75  0    0    0     0     1  1  1  30
+ ROWPL CYL    .2   350    .75   .75  0    0    0     0     1  1  1  30
+ 
+$--SUDBURY ------------------------------------------------------------
+
+ A109  SH1  22.5 11800  33.75 33.75  0    0    0     0     1  1  1  30 $ UHF SHROUD
+ A109A SH1   2.6  2000   5.92  5.92  0    0    0     0     1  1  1  30 $ ESTIMATED WT DIPLEXOR
+ SUDPL CYL   1     352   2.49  2.49  0    0    0     0     1  1  1  30 $ estimated
+
+$SUDSCR115 CYL 6     99   3.2   3.2   0    0    0     0     1  1  1  30 $ SCR AT 115M
+$SUDSCR98  CYL 6     49   1.6   1.6   0    0    0     0     1  1  1  30 $ SCR AT 98M
+
+$--DIVIS --------------------------------------------------------------
+
+ A108  SH1  10.15 4100  16.5  16.5   0    0    0     0     1  1  1  30  
+ DIVPL BOX    .3   800    .85   .85  0    0    0     0     1  1  1  30 $ PLATFORM
+ DIVPB BOX   2    1000   1.85  1.85  0    0    0     0     1  1  1  30 $ PLATFORM
+ DIVB1 BOX    .75   50    .375  .15  0    0    0     0     1  1  1  30 $ DUMMY LOAD
+
+$--KIRK O SHOTTS --------------------------------------------------------------
+ 
+ KIRK1 BOX    .3   800    1.5   1.5  0    0    0     0     1  1  1  30 $ PLATFORM
+ KIRK2 BOX    .3   100    0.6   0.6  0    0    0     0     1  1  1  30 $ PLATFORM
+ KIRK3 BOX    .3   50     0.3   0.3  0    0    0     0     1  1  1  30 $ PLATFORM
+
+$--HANNINGTON & HANR ---------------------------------------------------
+
+ A105    SH1 17.7 5000  27.2  27.2   0    0    0     0     1  1  1  30 $ UHF 1000kW ERP cylinder
+ A106    SH1  3    500   5.94  5.94  0    0    0     0     1  1  1  30 $ TERMINATION chamber
+ HANPL   CYL  1    352   2.49  2.49 29    0    0     0     1  1  1  30 $ estimated
+
+$-- CRYSTAL PALACE ------------------------------------------------------
+
+ A100 SH1     17 12000    25.9 25.9   0    0    0     0     1  1  1  30   $ UHF 1000kW ERP cylinder
+                                                                          $ AT CRYSTAL PALACE   
+ A101 BOX       .6  20      .36  .2   0    0    0     0     1  1  1  80   $ AIRCRAFT WARNING LIGHT
+ A102 BOX       .35 1134   1.4  1.4   0    0    0     0     1  1  1  30   $ PLATFORM AT 196m
+ A103 BOX      3.4  5883  12.58 12.58 0    0    0     0     1  1  1  30   $ HUT AT 131m
+ A104 BOX       .9  3058   8.46 8.46  0    0    0     0     1  1  1  30   $ PLATFORM AT 131m
+$ DTT  CYL     11 3000     11   11    0    0    0     0     1  1  1  30   $ DTT ANTENNA
+$ DTT  CYL     6  1500     6.5  6.5   0    0    0     0     1  1  1  30   $ DTT ANTENNA
+ DTT  CYL     15 3000     33   33     0    0    0     0     1  1  1  30   $ DTT ANTENNA
+ 
+$--EMERGENCY-------------------------------------------------------------
+
+ UHFDTT  UNITY  18  7500  26  26 0   0    0     0     1  1  1  30
+ A118B   SH1  1.17    0    .62    .62 0   0    0     0     1  1  1  30
+
+$--BETWS-Y-COED-------------------------------------------------------------
+
+ PLAT1   UNITY  1   500   1.5    1.5  0   0    0     0     1  1  1  30
+ PLAT2   UNITY  1   250   .5      .5  0   0    0     0     1  1  1  30
+ 12CELL  UNITY  1   750   10      10  0   0    0     0     1  1  1  30
+ 3DUAL   UNITY  1   250   3.5     3.5 0   0    0     0     1  1  1  30
+
+$--TAMPA-------------------------------------------------------------
+
+ TOP1    UNITY  33  13000  15    15   0    0    0   0  1  1  1  30
+ TOP2    UNITY  13  1600   5      5   0    0    0   0  1  1  1  30
+ TOP3    UNITY   3  1600   5      5   0    0    0   0  1  1  1  30
+ TOP4    UNITY  10  2000   5      5   0    0    0   0  1  1  1  30
+ TOP5    UNITY  25  10000  30    30   0    0    0   0  1  1  1  30
+ TT1     UNITY  22  3400   24.7  24.7 0    0    0   0  1  1  1  30      
+ TT2     UNITY  22  8400   32    32   0    0    0   0  1  1  1  30      
+ TT3     UNITY  11  2270   19    19   0    0    0   0  1  1  1  30      
+ TT4     UNITY  22  3700   14    14   0    0    0   0  1  1  1  30 
+     
+$--BATON-------------------------------------------------------------
+
+ BOP1    UNITY  18  3000   8.28   8.28 0   0    0   0  1  1  1  30
+ BOP2    UNITY  13  1600   5      5   0    0    0   0  1  1  1  30
+ BOP3    UNITY   3  1600   5      5   0    0    0   0  1  1  1  30
+ BOP4    UNITY  10  2000   5      5   0    0    0   0  1  1  1  30
+ BOP5    UNITY  25  10000  30    30   0    0    0   0  1  1  1  30
+ BT1     UNITY  22  3400   24.7  24.7 0    0    0   0  1  1  1  30      
+ BT2     UNITY  22  8400   32    32   0    0    0   0  1  1  1  30      
+ BT3     UNITY  11  2270   19    19   0    0    0   0  1  1  1  30      
+ BT4     UNITY  22  3700   14    14   0    0    0   0  1  1  1  30  
+    
+$--PITTSBURG-------------------------------------------------------------
+
+ PEN1    CYL   13.4 3300   30.0  30.0 0    0    0     0  1  1  1  30
+ PEN2    CYL   26.8 6600   45    45   0    0    0     0  1  1  1  30
+ PENPL   UNITY  1.2 2500   12.5  12.5  0   0    0     0  1  1  1  30
+ BOP4    UNITY  10  2000   5      5   0    0    0     0  1  1  1  30
+ BOP5    UNITY  25  10000  30    30   0    0    0     0  1  1  1  30
+ BT1     UNITY  22  3400   24.7  24.7 0    0    0     0  1  1  1  30      
+ BT2     UNITY  22  8400   32    32   0    0    0     0  1  1  1  30      
+ BT3     UNITY  11  2270   19    19   0    0    0     0  1  1  1  30      
+ BT4     UNITY  22  3700   14    14   0    0    0     0  1  1  1  30
+
+$--WREKIN--------------------------------------------------------------
+
+ A214    SH1   10   1000 10 10     0    0    0     0     1  1  1  30
+$ A215    BOX   4.5  500  5  5      0    0    0     0     1  1  1  11
+$ WRKDTT0 UNITY 3.75 750  11.4  2.5 0    0    0     0     1  1  1  11
+$ WRKDTT1 UNITY 2.75 500  8.5   1.5 0    0    0     0     1  1  1  11
+
+$--KELLYLANG--------------------------------------------------------------
+
+ A200 UNITY   5.5 2000 7.15 7.15    0    0    0     0     1  1  1  30
+
+$ *** THE mass NOTED ABOVE ARE IN KG FOR USE ONLY IN THE TWR FILE      ****
+
+ $ SHROUD FOR EXAMPLES
+$ name   type  Dim  mass   af    asf  aice  zref xeg  xicg   fcx  fcy  fmz
+ A100    SH1  17   12000  25.9   25.9   0   0   0   0     1  1  1  30 $ UHF 1000kW ERP cylinder
+ A118    SH1   7.3  3500  12.45  12.45  0   0   0   0     1  1  1  30
+ A118B   SH1   1.17    0    .62    .62  0   0   0   0     1  1  1  30
+
+$$ ----------------------------------------------------------------------------
+
+ $ GEC HORN
+
+ GEC12.5  GHORN  7.8  1300  18.2 10.4 50   0   0    0    1  1  1 7
+ GEC8.0   GHORN  5    1000   7.6  4.3 24   0   0    0    1  1  1 7
+$ data for small horn by proportion, wt from BT, ratio 2.5/3.875=.6451 area factor .4161
+
+
+$-------- For IconTower only-----------------------------------------------
+
+$ ancillaries for ICONTWR.MST,  TOWER FOR DISPLAYING ICONS ----------------------------------------------------
+$ name     type    dim   mass af    asf   aice  zref  xcg  xicg  fca fcs fcm ICON dx dy dz
+$                  m     kg   m2    m2    m2    m     m      m 
+
+ IC-1        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  1  1  1  1 $ Dish - no radome  
+ IC-2        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  2  1  1  1 $ Dish - conical radome
+ IC-3        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  3  1  1  1 $ Dish - high performance
+ IC-4        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  4  1  1  1 $ Dish - spherical radome
+ IC-5        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  5  1  1  1 $ Dish - planar radome 
+ IC-6        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  6  1  1  1 $ Grid  
+ IC-7        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  7  1  1  1 $ Horn antenna 
+ IC-8        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  8  1  1  1 $ Small standard dish
+ IC-9        CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  9  1  1  1 $ 
+ IC-101      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1 101 1  1  1 $ 
+
+
+ IC-10       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  10  1  1  1 $
+ IC-11       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  11  1  1  1 $
+ IC-12       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  12  1  1  1 $ 
+ IC-13       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  13  1  1  1 $ 
+ IC-14       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  14  1  1  1 $
+ IC-15       CYL   1      0   0.0   0.0   0.0  0      0      0    1 1 1  15  1  1  1 $
+ IC-16       CYL   1      0   0.0   0.0   0.0  0      0      0    1 1 1  16  1  1  1 $
+
+ IC-20       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  20  1  1  1 $ Shrouded yagi
+ IC-21       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  21  1  1  1 $
+ IC-22       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  22  1  1  1 $
+ IC-23       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  23  1  1  1 $
+ IC-24       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  24  1  1  1 $
+ IC-25       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  25  1  1  1 $ 
+ IC-26       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  26  1  1  1 $ 
+ IC-27       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  27  1  1  1 $ 
+ IC-28       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  28  1  1  1 $ 
+ IC-29       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  29  1  1  1 $ 
+ IC-291      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  291  1  1  1 $ 
+ IC-292      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  292  1  1  1 $ 
+ IC-293      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  293  1  1  1 $ 
+
+
+ IC-30       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  30  1  1  1 $
+ IC-30-2X3   CYL   3     25   4.7   4.7   0.0  0      1      1    1 1 1  30  2  2  3 $IC-30A
+ IC-301.85X2   CYL   2     25   2.91   2.91   0.0  0      1      1    1 1 1  30  1.85  1.85  2 $
+ IC-30C      CYL   5     25  10.21 10.21  0.0  0      1      1    1 1 1  30  2.6  2.6  5 $IC-30C
+ IC-30C-1    CYL   5     25   7.46  7.46  0.0  0      1      1    1 1 1  30  1.9  1.9  5 $IC-30C-1
+ IC-31       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  31  1  1  1 $
+ IC-32       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  32  1  1  1 $
+ IC-33       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  33  1  1  1 $ 1/2 Cylinder
+ IC-34       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  34  1  1  1 $ 6dB Colinear
+ IC-135      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1 135  1  1  1 $ A0035 ICON 135
+
+ IC-35       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  35  1  1  1 $
+ IC-135      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1 135  1  1  1 $
+ IC-36       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  36  1  1  1 $
+ IC-37       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  37  1  1  1 $ Discone UHF/VH
+ IC-38       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  38  1  1  1 $ 
+
+ IC-40       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  40  1  1  1 $ UHF 4-stack directional
+ IC-41       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  41  1  1  1 $ UHF 4-stack omnidirect
+ IC-42       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  42  1  1  1 $ FM omnidirectional
+ 
+ IC-44       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  44  1  1  1 $ UHF 2 stack directional
+ IC-45       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  45  1  1  1 $ UHF 1 stack directional
+ IC-46       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  46  1  1  1 $ 
+ IC-47       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  47  1  1  1 $ 
+
+ IC-48       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  48  1  1  1 $ 
+
+ IC-143      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  143 1  1  1 $ 
+ IC-148      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  148 1  1  1 $ 
+ IC-149      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  149 1  1  1 $ 
+
+ IC-50       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  50  1  1  1 $
+ IC-51       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  51  1  1  1 $
+ IC-52       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  52  1  1  1 $
+
+ IC-54       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  54  1  1  1 $
+ IC-55       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  55  1  1  1 $
+ IC-56       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  56  1  1  1 $ 
+ IC-57       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  57  1  1  1 $ 
+ IC-58       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  58  1  1  1 $ 
+  
+ IC-60       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  60  1  1  1 $ Log periodic
+ IC-61       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  61  1  1  1 $ Crossed log periodic pair
+ IC-62       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  62  1  1  1 $ 
+
+ IC-70       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  70  1  1  1 $
+ IC-71       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  71  1  1  1 $ 
+
+ IC-80       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  80  1  1  1 $
+ IC-81       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  81  1  1  1 $
+
+ IC-88       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  88  1  1  1 $ 
+
+ IC-91       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  91  1  1  1 $ VHF panel
+ IC-92       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  92  1  1  1 $ DAB panel
+ IC-93       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  93  1  1  1 $ 2 panel array
+ IC-94       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  94  1  1  1 $ 
+ IC-95       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  95  1  1  1 $ 
+ IC-96       CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  96  1  1  1 $ 
+
+ IC-100      CYL   1     25   1     1     1    0      1      1    1 1 1  100  1  1  1 $
+
+ IC-500      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  500  2  2  1 $ DELTA
+ IC-501      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  501  2  2  1 $ TORoid frame
+ IC-502      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  502  2  2  1 $ PLATFORM  
+ IC-503      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  503  1  1  1 $ 
+ IC-504      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  504  1  1  1 $ 
+ IC-505      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  405  1  1  1 $ 
+ 
+ IC-510      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  510  1  1  1 $ 
+ IC-511      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  511  1  1  1 $ 
+ IC-512      CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  512  1  1  1 $ 
+
+ IC-A0043    CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  143  1  1  1 $ lOG PERIODIC 
+ IC-A0048    CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  148  1  1  1 $ lOG PERIODIC 2 STACK
+ IC-A0049    CYL   1     25   0.1   0.1   0.3  0      1      1    1 1 1  149  1  1  1 $ lOG PERIODIC 4 STACK
+
+
+$---------------------------------------------------------------------------
+$--------------------------------------------------SURGE---------------------------------------------
+RF-1.549      CYL      1.549  20.9   0.7714   0.2788   0    0    0    0     1    1    1    14   0.498  0.180  1.549  $ Auto-registered from similar .lib device RF-1.5
+$--------------------------------------------------TELKOMSEL---------------------------------------------
+RRU-0.480     BOX      0.480  23.0   0.1710   0.0670   0    0    0    0     1    1    1    14   0.356  0.140  0.480  $ Auto-registered from similar .lib device RRU-480.356.140
+$--------------------------------------------------utk mounting ring---------------------------------------------
+PLATF2        UNITY    2.000  166.7  0.3333   0.3333   0    0    0    0     1    1    1    14   0.167  0.167  2.000  $ Auto-registered from similar .lib device PLATF-1
+$--------------------------------------------------GENERAL---------------------------------------------
+SH1PR-30      SHIELDED 1.000  53.3   0.7067   0.3133   0    0    0    0     1    1    1    3    0.707  0.313  1.000  $ Auto-registered from similar .lib device SH1PR-3
+$--------------------------------------------------3. MOUNTING---------------------------------------------
+RRU40         BOX      2.700  32.0   0.8576   1.1256   0    0    0    0     1    1    1    14   0.318  0.417  2.700  $ Auto-registered from similar .lib device RRU2.7
+$--------------------------------------------------TELKOMSEL---------------------------------------------
+SEC-1.4       BOX      1.400  30.6   0.4214   0.2520   0    0    0    0     1    1    1    14   0.301  0.180  1.400  $ Auto-registered from similar .lib device SEC-1.41
+$--------------------------------------------------3. MOUNTING---------------------------------------------
+RRU48         BOX      2.700  32.0   0.8576   1.1256   0    0    0    0     1    1    1    14   0.318  0.417  2.700  $ Auto-registered from similar .lib device RRU2.7
+END
+
+
+$$------------------------------------------------------------------------
+$$                            DRAG COEFFICIENTS
+$$------------------------------------------------------------------------
+
+$$$-- DRAG FORCES ON ANCILLARIES IN MSTOWER ARE BASED ON THE FRONTAL AREA OF 
+$$$-- THE ANCILLARY FACTORED BY THE DRAG COEFFICIENTS FOR THE PARTICULAR WIND DIRECTION.
+
+
+COEFFICIENTS
+
+USER  FACT  1       $
+$ ang afact   Cfx   Cfy    Cfz Cmx Cmy Cmz  
+   0. 1     1.3466  0.00    0   0   0   0  $ Coefficients converted from
+  45. 0.75  1.2342  0.3115  0   0   0   0  $ BBC table assuming dish has  
+  90. 0.5  -0.1452  0.66276 0   0   0   0  $ a frontal area of 7 m2.
+ 135. 0.75 -0.993   0.22717 0   0   0   0  $ F = 0.5 rho Cd A V2 Newtons.
+ 180. 1    -1.096   0.00    0   0   0   0  $
+END
+
+
+BOX  FACT 1.0         $ 
+$ ang afact   Cfx   Cfy    Cfz Cmx Cmy Cmz  
+   0  1.0     1.4   0.0    0   0   0   0
+  45  1.0     0.7   0.7    0   0   0   0
+  90  1.0     0.0   1.4    0   0   0   0
+ 135  1.0    -0.7   0.7    0   0   0   0
+ 180  1.0    -1.4   0.0    0   0   0   0
+
+$ ang afact   Cfx   Cfy    Cfz Cmx Cmy Cmz  
+$   0  1.0     2.0   0.0    0   0   0   0
+$  45  1.0     1.0   1.0    0   0   0   0
+$  90  1.0     0.0   2.0    0   0   0   0
+$ 135  1.0    -1.0   1.0    0   0   0   0
+$ 180  1.0    -2.0   0.0    0   0   0   0
+
+END
+
+
+$$ DRAG FACTOR FOR UNIT ITEMS, CN=1
+ UNITY  FACT  1.00
+$ ang afact    Cfx      Cfy   Cfz Cmx Cmy  Cmz   
+   0. 1       1.00     0.000   0  0  0  0.00  $
+  10. 1       0.9848   0.1736  0  0  0  0.00  $ Cfx = cos (ang)
+  20. 1       0.9397   0.3420  0  0  0  0.00  $ Cfy = sin (ang)
+  30. 1       0.8660   0.5000  0  0  0  0.00  $
+  40. 1       0.7660   0.6428  0  0  0  0.00  $
+  50. 1       0.6428   0.7660  0  0  0  0.00  $
+  60. 1       0.5000   0.8660  0  0  0  0.00  
+  70. 1       0.3420   0.9397  0  0  0  0.00  
+  80. 1       0.1736   0.9848  0  0  0  0.00  
+  90. 1       0.0000   1.0000  0  0  0  0.00  
+ 100. 1      -0.1736   0.9848  0  0  0  0.00  
+ 110. 1      -0.3420   0.9397  0  0  0  0.00  
+ 120. 1      -0.5000   0.8660  0  0  0  0.00  
+ 130. 1      -0.6428   0.7660  0  0  0  0.00       
+ 140. 1      -0.7660   0.6428  0  0  0  0.00       
+ 150. 1      -0.8660   0.5000  0  0  0  0.00      
+ 160. 1      -0.9397   0.3420  0  0  0  0.00      
+ 170. 1      -0.9848   0.1736  0  0  0  0.00      
+ 180. 1      -1.0000   0.000   0  0  0  0.00      
+END
+
+
+$$ DRAG FACTOR FOR SMOOTH SHROUDS GREATER THAN 500 mm DIA,Cn=.7
+ SH1 FACT  0.7      $ 
+$ ang afact    Cfx      Cfy   Cfz Cmx Cmy  Cmz   
+   0. 1       1.00     0.000   0  0  0  0.00  $
+  10. 1       0.9848   0.1736  0  0  0  0.00  $ Cfx = cos (ang)
+  20. 1       0.9397   0.3420  0  0  0  0.00  $ Cfy = sin (ang)
+  30. 1       0.8660   0.5000  0  0  0  0.00  $
+  40. 1       0.7660   0.6428  0  0  0  0.00  $
+  50. 1       0.6428   0.7660  0  0  0  0.00  $
+  60. 1       0.5000   0.8660  0  0  0  0.00  
+  70. 1       0.3420   0.9397  0  0  0  0.00  
+  80. 1       0.1736   0.9848  0  0  0  0.00  
+  90. 1       0.0000   1.0000  0  0  0  0.00  
+ 100. 1      -0.1736   0.9848  0  0  0  0.00  
+ 110. 1      -0.3420   0.9397  0  0  0  0.00  
+ 120. 1      -0.5000   0.8660  0  0  0  0.00  
+ 130. 1      -0.6428   0.7660  0  0  0  0.00       
+ 140. 1      -0.7660   0.6428  0  0  0  0.00       
+ 150. 1      -0.8660   0.5000  0  0  0  0.00      
+ 160. 1      -0.9397   0.3420  0  0  0  0.00      
+ 170. 1      -0.9848   0.1736  0  0  0  0.00      
+ 180. 1      -1.0000   0.000   0  0  0  0.00      
+END
+
+
+$$ DRAG FACTOR FOR SMALL DIAMETER CYLINDERS <=100mm DIA,Cn=1.2
+ CYL FACT  1.2      $ AND ROUGH SURFACED SHROUDS GREATER THAN 500 mm DIA
+$ ang afact    Cfx      Cfy   Cfz Cmx Cmy  Cmz   
+   0. 1       1.00     0.000   0  0  0  0.00  $
+  10. 1       0.9848   0.1736  0  0  0  0.00  $ Cfx = cos (ang)
+  20. 1       0.9397   0.3420  0  0  0  0.00  $ Cfy = sin (ang)
+  30. 1       0.8660   0.5000  0  0  0  0.00  $
+  40. 1       0.7660   0.6428  0  0  0  0.00  $
+  50. 1       0.6428   0.7660  0  0  0  0.00  $
+  60. 1       0.5000   0.8660  0  0  0  0.00  
+  70. 1       0.3420   0.9397  0  0  0  0.00  
+  80. 1       0.1736   0.9848  0  0  0  0.00  
+  90. 1       0.0000   1.0000  0  0  0  0.00  
+ 100. 1      -0.1736   0.9848  0  0  0  0.00  
+ 110. 1      -0.3420   0.9397  0  0  0  0.00  
+ 120. 1      -0.5000   0.8660  0  0  0  0.00  
+ 130. 1      -0.6428   0.7660  0  0  0  0.00       
+ 140. 1      -0.7660   0.6428  0  0  0  0.00       
+ 150. 1      -0.8660   0.5000  0  0  0  0.00      
+ 160. 1      -0.9397   0.3420  0  0  0  0.00      
+ 170. 1      -0.9848   0.1736  0  0  0  0.00      
+ 180. 1      -1.0000   0.000   0  0  0  0.00      
+END
+
+SHIELDED FACT  393.      $
+$ ang afact    Cfx      Cfy   Cfz Cmx Cmy  Cmz   
+   0. 1       0.00328  0.000   0  0  0  0.0000   $ ft-lb units from Andrew Cat 35.
+  10. 0.9849  0.0033   0.0003  0  0  0  0.00007  $  mult by 18.49 to give N for
+  20. 0.9415  0.00325  0.0005  0  0  0  0.00011  $  D, A in m m2 and V in Km/h
+  30. 0.875   0.00312  0.00065 0  0  0  0.00013  $  
+  40. 0.7934  0.003    0.00075 0  0  0  0.000125 $  18.49 x 3600^2 x  1
+  50. 0.7065  0.0028   0.0008  0  0  0  0.00008  $          -----    ---- x 2 = 393.  
+  60. 0.625   0.00245  0.00095 0  0  0  0.00002  $          1000^2   1.22
+  70. 0.5585  0.00175  0.00105 0  0  0 -0.00006  $
+  80. 0.5151  0.0007   0.0015  0  0  0 -0.00018  $ for use with:
+  90. 0.5    -0.0003   0.0016  0  0  0 -0.000255 $
+ 100. 0.5151 -0.0009   0.00155 0  0  0 -0.00029  $ F = dens_air x Cd x A x V^2 / 2
+ 110. 0.5585 -0.0014   0.00135 0  0  0 -0.000295 $
+ 120. 0.625  -0.00185  0.0011  0  0  0 -0.00027  $
+ 130. 0.7065 -0.0022   0.00085 0  0  0 -0.00024    
+ 140. 0.7934 -0.0024   0.0006  0  0  0 -0.0002     
+ 150. 0.875  -0.00245  0.0005  0  0  0 -0.00016   
+ 160. 0.9415 -0.0025   0.0004  0  0  0 -0.00011   
+ 170. 0.9849 -0.00252  0.00025 0  0  0 -0.00006   
+ 180. 1      -0.0026   0.000   0  0  0  0.0000    
+END
+ 
+GRID  FACT  393.  
+$ ang  afact   Cfx   Cfy   Cfz Cmx Cmy  Cmz       
+   0. 1       0.0014  0.000   0  0  0  0.0000     $ ft-lb units from Andrew Cat 35.
+  10. 0.9845  0.00135 0.0003  0  0  0 -0.00004    $  mult by 18.49 to give N for
+  20. 0.9415  0.0013  0.00045 0  0  0  0.00007    $  D, A in m m2 and V in Km/h
+  30. 0.875   0.0012  0.0006  0  0  0  0.000095   $  
+  40. 0.7934  0.00105 0.0007  0  0  0  0.00011    $  18.49 x 3600^2 x  1
+  50. 0.7065  0.0009  0.00075 0  0  0  0.00013    $           -----    ---- x 2 = 393.  
+  60. 0.625   0.0007  0.00078 0  0  0  0.000138   $          1000^2   1.22
+  70. 0.5585  0.0004  0.00075 0  0  0  0.00014    $
+  80. 0.5151  0.00015 0.0007  0  0  0 -0.00012    $ for use with:
+  90. 0.5    -0.0001  0.00065 0  0  0 -0.00011    $
+ 100. 0.5151 -0.0002  0.00075 0  0  0 -0.00012    $ F = dens_air x Cd x A x V^2 / 2
+ 110. 0.5585 -0.0004  0.0008  0  0  0 -0.00013    $
+ 120. 0.625  -0.00055 0.00078 0  0  0 -0.000135   $
+ 130. 0.7065 -0.00075 0.00072 0  0  0 -0.000125  
+ 140. 0.7934 -0.001   0.00065 0  0  0 -0.00011   
+ 150. 0.875  -0.0012  0.00055 0  0  0 -0.00009   
+ 160. 0.9415 -0.0013  0.0004  0  0  0 -0.00007   
+ 170. 0.9849 -0.0014  0.00025 0  0  0 -0.00004   
+ 180. 1.     -0.0014  0.000   0  0  0  0.00000   
+END
+
+STANDARD FACT  393.      $
+$ ang  afact    Cfx     Cfy  Cfz Cmx Cmy  Cmz       
+   0. 1        0.004    0.000   0  0  0  0.0000     $ ft-lb units from Andrew Cat 35.
+  10. 0.9849   0.004   -0.00005 0  0  0  0.00006    $  mult by 18.49 to give N for
+  20. 0.9415   0.004   -0.00005 0  0  0  0.00009    $  D, A in m m2 and V in Km/h
+  30. 0.875    0.00403 -0.00003 0  0  0  0.0001     $  
+  40. 0.7934   0.00415  0.0001  0  0  0  0.00013    $  18.49 x 3600^2 x  1
+  50. 0.7065   0.0043   0.0003  0  0  0  0.00017    $          -----    ---- x 2 = 393.  
+  60. 0.625    0.0043   0.0007  0  0  0  0.00022    $          1000^2   1.22
+  70. 0.5585   0.0036   0.0012  0  0  0  0.00002    $
+  80. 0.5151   0.002    0.001   0  0  0 -0.00024    $ for use with:
+  90. 0.5      0.000    0.001   0  0  0 -0.000325   $
+ 100. 0.5151  -0.001    0.00105 0  0  0 -0.00034    $ F = dens_air x Cd x A x V^2 / 2
+ 110. 0.5585  -0.00115  0.00115 0  0  0 -0.000355   $
+ 120. 0.625   -0.00115  0.00122 0  0  0 -0.00038    $
+ 130. 0.7065  -0.0012   0.0013  0  0  0 -0.00038   
+ 140. 0.7934  -0.0014   0.0012  0  0  0 -0.00034   
+ 150. 0.875   -0.00215  0.0012  0  0  0 -0.00028   
+ 160. 0.9415  -0.0022   0.0011  0  0  0 -0.00022    
+ 170. 0.9849  -0.0024   0.0008  0  0  0 -0.00013   
+ 180. 1.      -0.0026   0.000   0  0  0  0.00003   
+END
+
+RADOME   FACT  393.      $
+$ ang  afact   Cfx     Cfy   Cfz Cmx Cmy  Cmz      
+   0   1       0.0022  0.000   0  0  0  0.0000     $ ft-lb units from Andrew Cat 35.
+  10   0.9849  0.0022  0.0004  0  0  0  0.00021    $  mult by 18.49 to give N for
+  20   0.9415  0.0021  0.0008  0  0  0  0.00029    $  D, A in m m2 and V in Km/h
+  30   0.875   0.00195 0.0011  0  0  0  0.000275   $  
+  40   0.7934  0.0017  0.0013  0  0  0  0.000205   $  18.49 x 3600^2 x  1
+  50   0.7065  0.0014  0.0014  0  0  0  0.00011    $          -----    ---- x 2 = 393.  
+  60   0.625   0.00105 0.0013  0  0  0  0.00       $          1000^2   1.22
+  70   0.5585  0.0008  0.00115 0  0  0 -0.00014    $
+  80   0.5151  0.00052 0.0011  0  0  0 -0.00028    $ for use with:
+  90   0.5     0.0003  0.00105 0  0  0 -0.00039    $
+ 100   0.5151  0.00005 0.001   0  0  0 -0.00043    $ F = dens_air x Cd x A x V^2 / 2
+ 110   0.5585 -0.0002  0.0009  0  0  0 -0.00042    $
+ 120   0.625  -0.0005  0.00085 0  0  0 -0.00040    $
+ 130   0.7065 -0.00082 0.0008  0  0  0 -0.00035   
+ 140   0.7934 -0.00115 0.00075 0  0  0 -0.00022   
+ 150   0.875  -0.00142 0.00065 0  0  0 -0.00012   
+ 160   0.9415 -0.00165 0.0006  0  0  0 -0.00005   
+ 170   0.9849 -0.0018  0.0003  0  0  0 -0.00001    
+ 180   1      -0.00185 0.000   0  0  0  0         
+END
+
+AHORN   FACT  1.0                $ ANDREW HORN
+$ ang  afact   Cfx     Cfy      Cfz      Cmx     Cmy     Cmz      
+   0   1       0.8685  0        0.0252   0.0000  0.1683  0    
+  10   1       0.920   0        0.0898   0.0234  0.1804  0.0058  
+  20   1       0.945   0.766    0.1020   0.0178  0.1860  0.00813 
+  30   1       0.920   0.192    0.115   -0.0112  0.1682  0.00178 
+  40   1       0.843   0.374    0.128   -0.0290  0.1449 -0.0112  
+  50   1       0.715   0.435    0.204   -0.0467  0.1159 -0.0243  
+  60   1       0.562   0.511    0.166   -0.0524  0.1103 -0.0393  
+  70   1       0.230   0.588    0.153   -0.0411  0.0991 -0.0477  
+  80   1       0.140   0.617    0.153   -0.0346  0.0813 -0.0505  
+  90   1       0       0.639    0.242   -0.0467  0.0580 -0.0449  
+ 100   1      -0.077   0.613   -0.0608  -0.0524  0.0178 -0.0374  
+ 110   1      -0.166   0.600   -0.1281  -0.0411 -0.0234 -0.0346  
+ 120   1      -0.307   0.600   -0.294   -0.0234 -0.0636 -0.0374  
+ 130   1      -0.485   0.575   -0.4086  -0.0402 -0.0991 -0.0290    
+ 140   1      -0.677   0.473   -0.5114   0.0112 -0.1168 -0.0215    
+ 150   1      -0.818   0.280   -0.5880   0.0234 -0.1040 -0.0131    
+ 160   1      -0.882   0.153   -0.6385   0.0168 -0.1040 -0.0070    
+ 170   1      -0.920   0.051   -0.6647   0.0112 -0.1040 -0.00234    
+ 180   1      -0.920   0.000   -0.6647   0.00   -0.1040  0         
+END
+
+GHORN   FACT   1.0             $ GEC HORN
+$ ang   afact  Cfx   Cfy   Cfz   Cmx   Cmy   Cmz   $
+   0    0      1.52  0     0     0     0     0     $  coefficients are taken 
+  10    0      1.52 -0.14  0     0     0     0.20  $  from PO drg 100004, 
+  20    0      1.49 -0.07  0     0     0     0.16  $  corrected to use the 
+  30    0      1.43  0.21  0     0     0    -0.13  $  standard drag formula:
+  40    0      1.31  0.47  0     0     0    -0.39  $
+  50    0      1.08  0.66  0     0     0    -0.60  $  F = rho.Cf.A.V 2/2
+  60    0      0.92  0.76  0     0     0    -0.77  $  M = rho.Cm.A.D.V 2/2
+  70    0      0.65  0.77  0     0     0    -0.87  $
+  80    0      0.31  0.77  0     0     0    -0.82  $  where A = frontal area
+  90    0      0.13  0.77  0     0     0    -0.76  $     18.2m2 for large horn
+ 100    0      0     0.78  0     0     0    -0.76  $        D = o/a height
+ 110    0     -0.18  0.80  0     0     0    -0.79  $     7.8m for large horn
+ 120    0     -0.37  0.81  0     0     0    -0.89  $  Forces and moments are
+ 130    0     -0.59  0.80  0     0     0    -0.95  $  referred to the vertical 
+ 140    0     -0.84  0.68  0     0     0    -0.83  $  axis of the horn, not the
+ 150    0     -1.05  0.45  0     0     0    -0.61  $  rear as on drg.
+ 160    0     -1.18  0.26  0     0     0    -0.30  $
+ 170    0     -1.24  0.13  0     0     0    -0.16  $
+ 180    0     -1.24  0.00  0     0     0    -0.03  $
+
+ AMB4520R0 BOX 1.468 18.5 0.512332 0.243688 0 0 0 0 1 1 1 14 .349 0.166 1.468
+ LBX-9014DS-VTM BOX 2.435 34 0.547875 0.39934 0 0 0 0 1 1 1 14 0.164 0.225 2.435
+ RRU3953 BOX 0.400 20 0.1200 0.06000 0 0 0 0 1 1 1 14 .300 0.150 0.400
+ BA-B7B74Q7X90V BOX 2.69 22.2 0.93881 0.53531 0 0 0 0 1 1 1 14 0.349 0.199 2.69
+ R8964E BOX 0.425 17 0.1275 0.06375 0 0 0 0 1 1 1 14 .300 0.150 0.425
+ RRU2219 BOX 0.34 17 0.09894 0.0357 0 0 0 0 1 1 1 14 0.291 0.105 0.34
+ F030201 BOX 0.3 15 0.06 0.03 0 0 0 0 1 1 1 14 0.2 0.1 0.3
+ SCTANT-268.38.13 CYL 2.68 30    1.02  0.37
+
+
+END 
+
+
+$ INDOSAT MODERNIZATION ANTENNA - DRAG COEFFICIENT
+$ ===========================================================================
+
+ARGUS25  FACT 1.0   
+$ ang  afact    Cfx    Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.402   0.000   0   0   0   0
+   45  1.0     0.991   1.105   0   0   0   0
+   90  1.0     0.000   1.563   0   0   0   0
+  135  1.0    -0.991   1.105   0   0   0   0
+  180  1.0    -1.402   0.000   0   0   0   0
+  225  1.0    -0.991  -1.105   0   0   0   0
+  270  1.0     0.000  -1.563   0   0   0   0
+  315  1.0     0.991  -1.105   0   0   0   0
+END
+
+RRUERC-1  FACT 1.0        
+$ ang  afact   Cfx     Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.200   0.000   0   0   0   0
+   45  1.0     0.848   0.868   0   0   0   0
+   90  1.0     0.0     1.228   0   0   0   0
+  135  1.0    -0.848   0.868   0   0   0   0
+  180  1.0    -1.200   0.000   0   0   0   0
+  225  1.0    -0.848  -0.868   0   0   0   0
+  270  1.0     0.000  -1.228   0   0   0   0
+  315  1.0     0.848  -0.868   0   0   0   0
+END
+
+RRUERC-2  FACT 1.0        
+$ ang  afact   Cfx     Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.200   0.000   0   0   0   0
+   45  1.0     0.848   0.848   0   0   0   0
+   90  1.0     0.0     1.200   0   0   0   0
+  135  1.0    -0.848   0.848   0   0   0   0
+  180  1.0    -1.200   0.000   0   0   0   0
+  225  1.0    -0.848  -0.848   0   0   0   0
+  270  1.0     0.000  -1.200   0   0   0   0
+  315  1.0     0.848  -0.848   0   0   0   0
+END
+
+FILTER-1  FACT 1.0        
+$ ang  afact   Cfx     Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.200   0.000   0   0   0   0
+   45  1.0     0.848   0.855   0   0   0   0
+   90  1.0     0.0     1.210   0   0   0   0
+  135  1.0    -0.848   0.855   0   0   0   0
+  180  1.0    -1.200   0.000   0   0   0   0
+  225  1.0    -0.848  -0.855   0   0   0   0
+  270  1.0     0.000  -1.210   0   0   0   0
+  315  1.0     0.848  -0.855   0   0   0   0
+END
+
+FILTER-2  FACT 1.0        
+$ ang  afact   Cfx     Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.200   0.000   0   0   0   0
+   45  1.0     0.848   0.848   0   0   0   0
+   90  1.0     0.0     1.200   0   0   0   0
+  135  1.0    -0.848   0.848   0   0   0   0
+  180  1.0    -1.200   0.000   0   0   0   0
+  225  1.0    -0.848  -0.848   0   0   0   0
+  270  1.0     0.000  -1.200   0   0   0   0
+  315  1.0     0.848  -0.848   0   0   0   0
+END
+
+J-BOX  FACT 1.0        
+$ ang  afact   Cfx     Cfy    Cfz Cmx Cmy Cmz  
+    0  1.0     1.200   0.000   0   0   0   0
+   45  1.0     0.848   0.864   0   0   0   0
+   90  1.0     0.0     1.222   0   0   0   0
+  135  1.0    -0.848   0.864   0   0   0   0
+  180  1.0    -1.200   0.000   0   0   0   0
+  225  1.0    -0.848  -0.864   0   0   0   0
+  270  1.0     0.000  -1.222   0   0   0   0
+  315  1.0     0.848  -0.864   0   0   0   0
+END
+
+$$ DRAG FACTOR FOR SMALL DIAMETER CYLINDERS <=100mm DIA,Cn=1.2
+ CYL FACT  1.2      $ AND ROUGH SURFACED SHROUDS GREATER THAN 500 mm DIA
+$ ang afact    Cfx      Cfy   Cfz Cmx Cmy  Cmz   
+   0. 1       1.00     0.000   0  0  0  0.00  $
+  10. 1       0.9848   0.1736  0  0  0  0.00  $ Cfx = cos (ang)
+  20. 1       0.9397   0.3420  0  0  0  0.00  $ Cfy = sin (ang)
+  30. 1       0.8660   0.5000  0  0  0  0.00  $
+  40. 1       0.7660   0.6428  0  0  0  0.00  $
+  50. 1       0.6428   0.7660  0  0  0  0.00  $
+  60. 1       0.5000   0.8660  0  0  0  0.00  
+  70. 1       0.3420   0.9397  0  0  0  0.00  
+  80. 1       0.1736   0.9848  0  0  0  0.00  
+  90. 1       0.0000   1.0000  0  0  0  0.00  
+ 100. 1      -0.1736   0.9848  0  0  0  0.00  
+ 110. 1      -0.3420   0.9397  0  0  0  0.00  
+ 120. 1      -0.5000   0.8660  0  0  0  0.00  
+ 130. 1      -0.6428   0.7660  0  0  0  0.00       
+ 140. 1      -0.7660   0.6428  0  0  0  0.00       
+ 150. 1      -0.8660   0.5000  0  0  0  0.00      
+ 160. 1      -0.9397   0.3420  0  0  0  0.00      
+ 170. 1      -0.9848   0.1736  0  0  0  0.00      
+ 180. 1      -1.0000   0.000   0  0  0  0.00      
+END
+
+END
+
+END
+EOF
