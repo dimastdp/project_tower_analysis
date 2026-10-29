@@ -17,7 +17,7 @@ def test_health(client):
 
 def test_version(client):
     res = client.get("/api/version").json()
-    assert res["version"] == "2.1.0"
+    assert res["version"] == "2.2.0"
     assert "TIA-222-G" in res["standard"]
 
 

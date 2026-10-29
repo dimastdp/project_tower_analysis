@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     max_pu_kn     REAL,
     max_tu_kn     REAL,
     max_vu_kn     REAL,
-    created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+    elem_axial_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS analysis_reactions (
@@ -100,6 +101,10 @@ def init_db() -> None:
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.executescript(SCHEMA)
+        try:
+            conn.execute("ALTER TABLE analysis_runs ADD COLUMN elem_axial_json TEXT")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
     finally:
         conn.close()

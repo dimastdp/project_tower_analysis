@@ -1,4 +1,5 @@
 """HTTP, validation, orchestration and persistence. No FEM math lives here."""
+import json
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -137,7 +138,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 app = FastAPI(title="Tower Dashboard API", version=__version__, lifespan=lifespan)
 app.add_middleware(
@@ -560,6 +561,15 @@ def _load_run(
     ref_exp = twr_meta.get("exposure") or "B"
     eff_exposure = exposure or ref_exp
 
+    elem_axial = None
+    if "elem_axial_json" in run_row.keys() and run_row["elem_axial_json"]:
+        try:
+            raw_ax = json.loads(run_row["elem_axial_json"])
+            if isinstance(raw_ax, dict):
+                elem_axial = {int(k): float(v) for k, v in raw_ax.items()}
+        except Exception:
+            elem_axial = None
+
     engineering = build_engineering_report(
         nodes=nodes,
         members=members,
@@ -574,6 +584,7 @@ def _load_run(
         mst_embedded=emb,
         ref_vb_ms=ref_vb,
         ref_exposure=ref_exp,
+        elem_axial=elem_axial,
     )
     return {
         "run_id": run_row["run_id"],
@@ -709,11 +720,14 @@ def run_analysis(site: str, body: AnalysisIn):
     max_tu = max(r["tu_kn"] for r in reactions)
     max_vu = max(r["vu_kn"] for r in reactions)
 
+    elem_axial = getattr(run_tia222g_analysis, "last_elem_axial", {}) or {}
+    elem_axial_json = json.dumps(elem_axial) if elem_axial else None
+
     with connect() as c:
         cur = c.execute(
-            "INSERT INTO analysis_runs (tower_id, wind_speed_ms, max_pu_kn, max_tu_kn, max_vu_kn) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (tid, body.wind_speed_ms, max_pu, max_tu, max_vu),
+            "INSERT INTO analysis_runs (tower_id, wind_speed_ms, max_pu_kn, max_tu_kn, max_vu_kn, elem_axial_json) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (tid, body.wind_speed_ms, max_pu, max_tu, max_vu, elem_axial_json),
         )
         run_id = cur.lastrowid
         c.executemany(

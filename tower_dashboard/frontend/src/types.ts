@@ -125,7 +125,37 @@ export interface MemberCheckRow {
   phi_pn_kn: number;
   pu_kn: number;
   stress_ratio: number;
-  status: "AMAN" | "OVERSTRESS";
+  status: "AMAN" | "OVERSTRESS" | string;
+  pu_opensees_kn?: number;
+  phi_pn_opensees_kn?: number;
+  sr_opensees?: number;
+  status_opensees?: string;
+  pu_mst_kn?: number;
+  phi_pn_mst_kn?: number;
+  sr_mst?: number;
+  status_mst?: string;
+  diff_sr?: number;
+  accuracy_pct?: number;
+  status_match?: boolean;
+}
+
+export interface MemberComparisonRow {
+  pnl: number;
+  members: string;
+  typ: string;
+  size: string;
+  kl_r: number;
+  pu_opensees_kn: number;
+  phi_pn_opensees_kn: number;
+  sr_opensees: number;
+  status_opensees: string;
+  pu_mst_kn: number;
+  phi_pn_mst_kn: number;
+  sr_mst: number;
+  status_mst: string;
+  diff_sr: number;
+  accuracy_pct: number;
+  status_match: boolean;
 }
 
 export interface AnchorBaseplateCheck {
@@ -251,6 +281,7 @@ export interface EngineeringReport {
   twist_sway_disp?: TwistSwaySummary;
   device_loads: DeviceLoadRow[];
   member_checks: MemberCheckRow[];
+  member_comparison_rows?: MemberComparisonRow[];
   member_3d_stress?: Member3DStress[];
   mst_comparison?: MstComparisonRow[];
   anchor_baseplate: AnchorBaseplateCheck;

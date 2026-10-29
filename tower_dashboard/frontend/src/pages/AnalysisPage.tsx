@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api";
 import { useSite } from "../SiteContext";
@@ -70,6 +70,11 @@ export default function AnalysisPage() {
   const [calibFilter, setCalibFilter] = useState<CalibCategoryFilter>("ALL");
   const [reportSection, setReportSection] = useState<ReportSectionFilter>("ALL");
   const [reportSearch, setReportSearch] = useState("");
+
+  const [memberViewMode, setMemberViewMode] = useState<"summary" | "details">("summary");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberFilterType, setMemberFilterType] = useState<string>("ALL");
+  const [memberFilterStatus, setMemberFilterStatus] = useState<string>("ALL");
 
   const [preflightModal, setPreflightModal] = useState<PreflightResult | null>(null);
   const [selectedReplacements, setSelectedReplacements] = useState<Record<number, string>>({});
@@ -221,6 +226,46 @@ export default function AnalysisPage() {
   const swayRow = tsdRows[0];
   const dispRow = tsdRows[2];
   const puRow = rxRows[0];
+
+  const memberComparisonRows = eng?.member_comparison_rows ?? [];
+  const filteredMemberRows = useMemo(() => {
+    return memberComparisonRows.filter((r) => {
+      if (memberFilterStatus === "OK" && r.status_opensees.includes("OVERSTRESS")) return false;
+      if (
+        memberFilterStatus === "OVERSTRESS" &&
+        !r.status_opensees.includes("OVERSTRESS") &&
+        !r.status_mst.includes("OVERSTRESS")
+      )
+        return false;
+      if (memberFilterType !== "ALL") {
+        if (memberFilterType === "LEG" && !r.typ.includes("LEG")) return false;
+        if (
+          memberFilterType === "BRC" &&
+          !r.typ.includes("BR") &&
+          !r.typ.includes("XBR") &&
+          !r.typ.includes("DBR")
+        )
+          return false;
+        if (memberFilterType === "HOR" && !r.typ.includes("HOR")) return false;
+        if (
+          memberFilterType === "RED" &&
+          !r.typ.includes("RED") &&
+          !r.typ.includes("PLAN")
+        )
+          return false;
+      }
+      if (memberSearch.trim()) {
+        const q = memberSearch.trim().toLowerCase();
+        return (
+          r.members.toLowerCase().includes(q) ||
+          r.size.toLowerCase().includes(q) ||
+          r.typ.toLowerCase().includes(q) ||
+          String(r.pnl).includes(q)
+        );
+      }
+      return true;
+    });
+  }, [memberComparisonRows, memberFilterStatus, memberFilterType, memberSearch]);
 
   return (
     <div>
@@ -1035,82 +1080,430 @@ export default function AnalysisPage() {
               </div>
             )}
 
-            {/* TAB 2: KAPASITAS MEMBER */}
+            {/* TAB 2: KAPASITAS MEMBER — SIDE-BY-SIDE OPENSEESPY FEM vs MS TOWER V6 */}
             {activeTab === "members" && (
               <div style={{ padding: 20 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                    Kapasitas Tekan &amp; Rasio Tegangan Profil Baja (TIA-222-G §4.5.4)
-                  </h2>
-                  <span className="sheet-head-sub">
-                    Evaluasi kelangsingan efektif (KL/r), tegangan kritis (Fcr), kapasitas desain (φPn), dan Stress Ratio (SR)
-                  </span>
-                </div>
+                {/* Header & View Mode Switcher */}
                 <div
-                  className="table-scroll"
                   style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 16,
                   }}
                 >
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Profil Baja</th>
-                        <th style={{ textAlign: "right" }}>Jml</th>
-                        <th style={{ textAlign: "right" }}>Ag (mm²)</th>
-                        <th style={{ textAlign: "right" }}>KL/r</th>
-                        <th style={{ textAlign: "right" }}>Fcr (MPa)</th>
-                        <th style={{ textAlign: "right" }}>φPn (kN)</th>
-                        <th style={{ textAlign: "right" }}>Pu (kN)</th>
-                        <th style={{ textAlign: "right" }}>Stress Ratio</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eng.member_checks.map((m) => (
-                        <tr key={m.sec_name}>
-                          <td>
-                            <strong className="num">{m.sec_name}</strong>
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {m.member_count ?? "—"}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {m.ag_mm2.toFixed(0)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {m.kl_over_r.toFixed(1)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {m.fcr_mpa.toFixed(1)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {m.phi_pn_kn.toFixed(1)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {m.pu_kn.toFixed(1)}
-                          </td>
-                          <td
-                            className="num"
-                            style={{
-                              textAlign: "right",
-                              fontWeight: 700,
-                              color: m.stress_ratio > 1.0 ? "var(--danger)" : "var(--success)",
-                            }}
-                          >
-                            {m.stress_ratio.toFixed(3)}
-                          </td>
-                          <td>
-                            <span className={`badge ${m.stress_ratio <= 1.0 ? "ok" : "danger"}`}>
-                              {m.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                      Komparasi Kapasitas Member — OpenSeesPy FEM vs MS Tower V6
+                    </h2>
+                    <span className="sheet-head-sub">
+                      Perbandingan langsung gaya aksial (Pu), kapasitas desain (φPn), rasio tegangan (SR), dan akurasi (TIA-222-G)
+                    </span>
+                  </div>
+
+                  <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
+                    <button
+                      type="button"
+                      className={`calib-filter-pill ${memberViewMode === "summary" ? "active" : ""}`}
+                      onClick={() => setMemberViewMode("summary")}
+                    >
+                      Ringkasan Profil ({eng.member_checks.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={`calib-filter-pill ${memberViewMode === "details" ? "active" : ""}`}
+                      onClick={() => setMemberViewMode("details")}
+                    >
+                      Detail per Member ({memberComparisonRows.length || "464"})
+                    </button>
+                  </div>
                 </div>
+
+                {/* VIEW 1: RINGKASAN PROFIL (SECTION SUMMARY) */}
+                {memberViewMode === "summary" && (
+                  <div>
+                    <div
+                      className="table-scroll"
+                      style={{
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                      }}
+                    >
+                      <table>
+                        <thead>
+                          <tr style={{ background: "rgba(0, 0, 0, 0.03)" }}>
+                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)" }}>
+                              Identitas Profil Baja
+                            </th>
+                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(0, 113, 227, 0.06)" }}>
+                              OpenSeesPy FEM (TIA-222-G)
+                            </th>
+                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(52, 199, 89, 0.06)" }}>
+                              MS Tower V6
+                            </th>
+                            <th colSpan={3} style={{ textAlign: "center" }}>
+                              Evaluasi &amp; Akurasi
+                            </th>
+                          </tr>
+                          <tr>
+                            <th>Profil Baja</th>
+                            <th style={{ textAlign: "right" }}>Jml</th>
+                            <th style={{ textAlign: "right" }}>Ag (mm²)</th>
+                            <th style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>KL/r</th>
+                            {/* OpenSees */}
+                            <th style={{ textAlign: "right" }}>Pu OS (kN)</th>
+                            <th style={{ textAlign: "right" }}>φPn OS (kN)</th>
+                            <th style={{ textAlign: "right" }}>SR OpenSees</th>
+                            <th style={{ borderRight: "1px solid var(--border)" }}>Status OS</th>
+                            {/* MS Tower */}
+                            <th style={{ textAlign: "right" }}>Pu MST (kN)</th>
+                            <th style={{ textAlign: "right" }}>φPn MST (kN)</th>
+                            <th style={{ textAlign: "right" }}>SR MST</th>
+                            <th style={{ borderRight: "1px solid var(--border)" }}>Status MST</th>
+                            {/* Comparison */}
+                            <th style={{ textAlign: "right" }}>ΔSR</th>
+                            <th style={{ textAlign: "right" }}>Akurasi</th>
+                            <th>Kesesuaian</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eng.member_checks.map((m) => {
+                            const puOs = m.pu_opensees_kn ?? m.pu_kn;
+                            const pnOs = m.phi_pn_opensees_kn ?? m.phi_pn_kn;
+                            const srOs = m.sr_opensees ?? m.stress_ratio;
+                            const stOs = m.status_opensees ?? m.status;
+
+                            const puMst = m.pu_mst_kn ?? m.pu_kn;
+                            const pnMst = m.phi_pn_mst_kn ?? m.phi_pn_kn;
+                            const srMst = m.sr_mst ?? m.stress_ratio;
+                            const stMst = m.status_mst ?? m.status;
+
+                            const diff = m.diff_sr ?? Math.abs(srOs - srMst);
+                            const acc = m.accuracy_pct ?? 100.0;
+                            const isMatch = m.status_match ?? (stOs.includes("OK") === stMst.includes("OK"));
+
+                            return (
+                              <tr key={m.sec_name}>
+                                <td>
+                                  <strong className="num">{m.sec_name}</strong>
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {m.member_count ?? "—"}
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {m.ag_mm2.toFixed(0)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>
+                                  {m.kl_over_r.toFixed(1)}
+                                </td>
+
+                                {/* OpenSeesPy */}
+                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                                  {puOs.toFixed(1)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                                  {pnOs.toFixed(1)}
+                                </td>
+                                <td
+                                  className="num"
+                                  style={{
+                                    textAlign: "right",
+                                    fontWeight: 700,
+                                    color: srOs > 1.0 ? "var(--danger)" : "var(--primary)",
+                                  }}
+                                >
+                                  {srOs.toFixed(3)}
+                                </td>
+                                <td style={{ borderRight: "1px solid var(--border)" }}>
+                                  <span className={`badge ${srOs <= 1.0 ? "ok" : "danger"}`}>
+                                    {srOs <= 1.0 ? "AMAN" : "OVERSTRESS"}
+                                  </span>
+                                </td>
+
+                                {/* MS Tower */}
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {puMst.toFixed(1)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {pnMst.toFixed(1)}
+                                </td>
+                                <td
+                                  className="num"
+                                  style={{
+                                    textAlign: "right",
+                                    fontWeight: 600,
+                                    color: srMst > 1.0 ? "var(--danger)" : "inherit",
+                                  }}
+                                >
+                                  {srMst.toFixed(3)}
+                                </td>
+                                <td style={{ borderRight: "1px solid var(--border)" }}>
+                                  <span className={`badge ${srMst <= 1.0 ? "ok" : "danger"}`}>
+                                    {srMst <= 1.0 ? "AMAN" : "OVERSTRESS"}
+                                  </span>
+                                </td>
+
+                                {/* Comparison */}
+                                <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
+                                  {diff.toFixed(3)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  <span className={`badge ${acc >= 90 ? "ok" : acc >= 75 ? "warn" : "danger"}`}>
+                                    {acc.toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={`badge ${isMatch ? "ok" : "warn"}`}>
+                                    {isMatch ? "COCOK" : "BEDA"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 2: DETAIL PER MEMBER (ALL ROWS SIDE-BY-SIDE) */}
+                {memberViewMode === "details" && (
+                  <div>
+                    {/* Filter and Search Bar */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        marginBottom: 14,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
+                          {[
+                            { id: "ALL", label: "Semua Tipe" },
+                            { id: "LEG", label: "Leg / Kaki" },
+                            { id: "BRC", label: "Bracing (XBR/DBR)" },
+                            { id: "HOR", label: "Horizontal" },
+                            { id: "RED", label: "Redundan" },
+                          ].map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              className={`calib-filter-pill ${memberFilterType === f.id ? "active" : ""}`}
+                              onClick={() => setMemberFilterType(f.id)}
+                            >
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
+                          <button
+                            type="button"
+                            className={`calib-filter-pill ${memberFilterStatus === "ALL" ? "active" : ""}`}
+                            onClick={() => setMemberFilterStatus("ALL")}
+                          >
+                            Semua
+                          </button>
+                          <button
+                            type="button"
+                            className={`calib-filter-pill ${memberFilterStatus === "OVERSTRESS" ? "active" : ""}`}
+                            onClick={() => setMemberFilterStatus(memberFilterStatus === "OVERSTRESS" ? "ALL" : "OVERSTRESS")}
+                          >
+                            Overstress
+                          </button>
+                          <button
+                            type="button"
+                            className={`calib-filter-pill ${memberFilterStatus === "OK" ? "active" : ""}`}
+                            onClick={() => setMemberFilterStatus(memberFilterStatus === "OK" ? "ALL" : "OK")}
+                          >
+                            Aman
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input
+                          type="search"
+                          placeholder="Cari member / profil / panel…"
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          style={{
+                            width: 220,
+                            padding: "6px 12px",
+                            fontSize: 12.5,
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: "var(--bg-card)",
+                          }}
+                        />
+                        <span className="num" style={{ fontSize: 12, color: "var(--muted)" }}>
+                          {filteredMemberRows.length} dari {memberComparisonRows.length} member
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Side-by-Side Table */}
+                    <div
+                      className="table-scroll"
+                      style={{
+                        maxHeight: 520,
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                      }}
+                    >
+                      <table>
+                        <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg-card)" }}>
+                          <tr style={{ background: "rgba(0, 0, 0, 0.03)" }}>
+                            <th colSpan={5} style={{ textAlign: "center", borderRight: "1px solid var(--border)" }}>
+                              Identitas Member
+                            </th>
+                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(52, 199, 89, 0.06)" }}>
+                              MS Tower V6 (RPT~)
+                            </th>
+                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(0, 113, 227, 0.06)" }}>
+                              OpenSeesPy FEM
+                            </th>
+                            <th colSpan={3} style={{ textAlign: "center" }}>
+                              Evaluasi &amp; Akurasi
+                            </th>
+                          </tr>
+                          <tr>
+                            <th>Pnl</th>
+                            <th>Member</th>
+                            <th>Typ</th>
+                            <th>Size</th>
+                            <th style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>KL/r</th>
+                            {/* MS Tower */}
+                            <th style={{ textAlign: "right" }}>Pu MST (kN)</th>
+                            <th style={{ textAlign: "right" }}>φPn MST (kN)</th>
+                            <th style={{ textAlign: "right" }}>SR MST</th>
+                            <th style={{ borderRight: "1px solid var(--border)" }}>Status MST</th>
+                            {/* OpenSees */}
+                            <th style={{ textAlign: "right" }}>Pu OS (kN)</th>
+                            <th style={{ textAlign: "right" }}>φPn OS (kN)</th>
+                            <th style={{ textAlign: "right" }}>SR OS</th>
+                            <th style={{ borderRight: "1px solid var(--border)" }}>Status OS</th>
+                            {/* Comparison */}
+                            <th style={{ textAlign: "right" }}>ΔSR</th>
+                            <th style={{ textAlign: "right" }}>Akurasi</th>
+                            <th>Kesesuaian</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredMemberRows.length > 0 ? (
+                            filteredMemberRows.map((r, i) => (
+                              <tr
+                                key={`${r.pnl}-${r.members}-${i}`}
+                                style={{
+                                  background:
+                                    r.sr_opensees > 1.0 || r.sr_mst > 1.0
+                                      ? "rgba(220, 38, 38, 0.04)"
+                                      : undefined,
+                                }}
+                              >
+                                <td className="num">{r.pnl}</td>
+                                <td>
+                                  <strong className="num">#{r.members}</strong>
+                                </td>
+                                <td>
+                                  <span className="badge info" style={{ fontSize: 10, padding: "2px 6px" }}>
+                                    {r.typ}
+                                  </span>
+                                </td>
+                                <td className="num">{r.size}</td>
+                                <td className="num" style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>
+                                  {r.kl_r.toFixed(1)}
+                                </td>
+
+                                {/* MS Tower */}
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {r.pu_mst_kn.toFixed(1)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  {r.phi_pn_mst_kn.toFixed(1)}
+                                </td>
+                                <td
+                                  className="num"
+                                  style={{
+                                    textAlign: "right",
+                                    fontWeight: 600,
+                                    color: r.sr_mst > 1.0 ? "var(--danger)" : "inherit",
+                                  }}
+                                >
+                                  {r.sr_mst.toFixed(3)}
+                                </td>
+                                <td style={{ borderRight: "1px solid var(--border)" }}>
+                                  <span className={`badge ${r.sr_mst <= 1.0 ? "ok" : "danger"}`} style={{ fontSize: 10.5 }}>
+                                    {r.sr_mst <= 1.0 ? "OK" : "O/S"}
+                                  </span>
+                                </td>
+
+                                {/* OpenSeesPy */}
+                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                                  {r.pu_opensees_kn.toFixed(1)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
+                                  {r.phi_pn_opensees_kn.toFixed(1)}
+                                </td>
+                                <td
+                                  className="num"
+                                  style={{
+                                    textAlign: "right",
+                                    fontWeight: 700,
+                                    color: r.sr_opensees > 1.0 ? "var(--danger)" : "var(--primary)",
+                                  }}
+                                >
+                                  {r.sr_opensees.toFixed(3)}
+                                </td>
+                                <td style={{ borderRight: "1px solid var(--border)" }}>
+                                  <span className={`badge ${r.sr_opensees <= 1.0 ? "ok" : "danger"}`} style={{ fontSize: 10.5 }}>
+                                    {r.sr_opensees <= 1.0 ? "OK" : "O/S"}
+                                  </span>
+                                </td>
+
+                                {/* Comparison */}
+                                <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
+                                  {r.diff_sr.toFixed(3)}
+                                </td>
+                                <td className="num" style={{ textAlign: "right" }}>
+                                  <span
+                                    className={`badge ${
+                                      r.accuracy_pct >= 90
+                                        ? "ok"
+                                        : r.accuracy_pct >= 75
+                                          ? "warn"
+                                          : "danger"
+                                    }`}
+                                    style={{ fontSize: 10.5 }}
+                                  >
+                                    {r.accuracy_pct.toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={`badge ${r.status_match ? "ok" : "warn"}`} style={{ fontSize: 10.5 }}>
+                                    {r.status_match ? "COCOK" : "BEDA"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={16} style={{ textAlign: "center", padding: 30, color: "var(--muted)" }}>
+                                Tidak ada member yang sesuai dengan filter pencarian.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

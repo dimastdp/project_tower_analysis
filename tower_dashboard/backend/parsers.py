@@ -39,11 +39,21 @@ def parse_section_dimensions(sec_name: str, a_m2: float, iy_m4: float) -> dict:
     if m:
         b_mm = float(m.group(1))
         t_mm = float(m.group(3))
+        is_sta = "STA" in (sec_name or "").upper()
+        geom_ag = ((4.0 * b_mm - 2.0 * t_mm) * t_mm) if is_sta else ((2.0 * b_mm - t_mm) * t_mm)
+        # Use exact geometric area if placeholder A_SEC (940 mm²) was passed or geom is significantly larger
+        if abs(a_mm2 - 940.0) < 1.0 or geom_ag > a_mm2 * 1.2 or geom_ag < a_mm2 * 0.8:
+            a_mm2 = geom_ag
     else:
         b_mm = max((a_mm2 * 3.5) ** 0.5, 40.0)
         t_mm = max(a_mm2 / (2.0 * b_mm), 4.0)
     # For equal angles (EA), minimum radius of gyration r_v ≈ 0.195 * b (or 0.64 * rx)
-    r_min_mm = round(min(rx_mm, 0.195 * b_mm), 2) if "EA" in (sec_name or "").upper() else round(rx_mm * 0.78, 2)
+    if "EA" in (sec_name or "").upper():
+        r_min_mm = round(0.195 * b_mm, 2)
+    elif "STA" in (sec_name or "").upper():
+        r_min_mm = round(0.385 * b_mm, 2)
+    else:
+        r_min_mm = round(rx_mm * 0.78, 2)
     return {
         "ag_mm2": round(a_mm2, 1),
         "b_mm": round(b_mm, 1),

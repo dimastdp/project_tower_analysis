@@ -576,6 +576,21 @@ def run_tia222g_analysis(
             raise RuntimeError("Analysis did not converge.")
         ops.reactions()
 
+        # Capture member axial forces from OpenSees before wipe
+        elem_axial_dict = {}
+        if hasattr(ops, "_elem_axial") and ops._elem_axial:
+            elem_axial_dict = {int(k): float(v) for k, v in ops._elem_axial.items()}
+        if not elem_axial_dict:
+            for mb in members:
+                mid = int(mb["id"])
+                try:
+                    f = ops.eleResponse(mid, "forces")
+                    if f and len(f) >= 7:
+                        elem_axial_dict[mid] = float(f[6])
+                except Exception:
+                    pass
+        setattr(run_tia222g_analysis, "last_elem_axial", elem_axial_dict)
+
         raw_results = []
         for sid in supports:
             rx = ops.nodeReaction(sid, 1)
@@ -650,6 +665,7 @@ def build_engineering_report(
     mst_embedded: dict | None = None,
     ref_vb_ms: float = 32.10,
     ref_exposure: str = "B",
+    elem_axial: dict[int, float] | None = None,
 ) -> dict:
     """Compute the full engineering summary & calibrate the 3 MS Tower benchmarks: SR, Twist/Sway/Displacement, Support Reaction."""
     pts = [n for n in nodes.values() if is_structural(n)]
@@ -749,6 +765,8 @@ def build_engineering_report(
         if sname not in gov_rpt_by_sec or rinfo["stress_ratio"] > gov_rpt_by_sec[sname]["stress_ratio"]:
             gov_rpt_by_sec[sname] = rinfo
 
+    elem_axial_map = elem_axial if elem_axial is not None else getattr(run_tia222g_analysis, "last_elem_axial", {}) or {}
+
     member_checks = []
     sec_sr_map: dict[str, dict] = {}
     for idx_g, (sid, mlist) in enumerate(sorted(sec_groups.items())):
@@ -770,8 +788,11 @@ def build_engineering_report(
         if gov_r:
             eff_len = avg_len
             kl_r_ovr = float(gov_r["kl_over_r"]) if gov_r.get("kl_over_r") else None
-            chk = check_angle_member_tia222g(
-                pu_kn=max(float(gov_r["pu_kn"]) * qz_scale, 1.0),
+            # 1. OpenSeesPy FEM calculation
+            os_forces = [abs(elem_axial_map.get(int(x["id"]), 0.0)) for x in mlist if int(x.get("id") or 0) in elem_axial_map]
+            pu_os = max(os_forces) if os_forces else max(float(gov_r["pu_kn"]) * qz_scale, 1.0)
+            chk_os = check_angle_member_tia222g(
+                pu_kn=pu_os,
                 length_m=eff_len,
                 ag_mm2=dims["ag_mm2"],
                 r_min_mm=dims["r_min_mm"],
@@ -780,12 +801,21 @@ def build_engineering_report(
                 sec_name=sec_name,
                 kl_r_override=kl_r_ovr,
             )
-            # Align capacity & SR to MS Tower RPT~ governing check for this section
-            if gov_r.get("phi_pn_kn", 0) > 0:
-                chk["phi_pn_kn"] = round(float(gov_r["phi_pn_kn"]), 2)
-                chk["pu_kn"] = round(float(gov_r["pu_kn"]) * qz_scale, 2)
-                chk["stress_ratio"] = round(float(gov_r["stress_ratio"]) * qz_scale, 3)
-                chk["status"] = "AMAN (OK)" if chk["stress_ratio"] <= 1.0 else "NOT OK (OVERSTRESS)"
+            phi_pn_os = chk_os["phi_pn_kn"]
+            sr_os = round(pu_os / max(phi_pn_os, 1e-6), 3)
+            status_os = "AMAN (OK)" if sr_os <= 1.0 else "NOT OK (OVERSTRESS)"
+
+            # 2. MS Tower V6 calculation
+            pu_mst = round(float(gov_r["pu_kn"]) * qz_scale, 2)
+            phi_pn_mst = round(float(gov_r["phi_pn_kn"]) if gov_r.get("phi_pn_kn", 0) > 0 else phi_pn_os, 2)
+            sr_mst = round(float(gov_r["stress_ratio"]) * qz_scale, 3)
+            status_mst = "AMAN (OK)" if sr_mst <= 1.0 else "NOT OK (OVERSTRESS)"
+
+            chk = dict(chk_os)
+            chk["phi_pn_kn"] = phi_pn_os
+            chk["pu_kn"] = round(pu_os, 2)
+            chk["stress_ratio"] = sr_os
+            chk["status"] = status_os
         else:
             if "STA70" in upper_sec or dims["ag_mm2"] >= 1200:
                 eff_len, kl_r_ovr, pu_member = 0.75, 31.0, max(max_pu * 0.923, 10.0)
@@ -795,8 +825,12 @@ def build_engineering_report(
                 eff_len, kl_r_ovr, pu_member = avg_len, 236.0, max(10.66 * qz_scale, 3.0)
             else:
                 eff_len, kl_r_ovr, pu_member = avg_len, None, max(max_pu * 0.25, 5.0)
+
+            os_forces = [abs(elem_axial_map.get(int(x["id"]), 0.0)) for x in mlist if int(x.get("id") or 0) in elem_axial_map]
+            pu_os = max(os_forces) if os_forces else pu_member
+
             chk = check_angle_member_tia222g(
-                pu_kn=pu_member,
+                pu_kn=pu_os,
                 length_m=eff_len,
                 ag_mm2=dims["ag_mm2"],
                 r_min_mm=dims["r_min_mm"],
@@ -805,9 +839,91 @@ def build_engineering_report(
                 sec_name=sec_name,
                 kl_r_override=kl_r_ovr,
             )
+            phi_pn_os = chk["phi_pn_kn"]
+            sr_os = round(pu_os / max(phi_pn_os, 1e-6), 3)
+            status_os = "AMAN (OK)" if sr_os <= 1.0 else "NOT OK (OVERSTRESS)"
+
+            pu_mst = round(pu_os, 2)
+            phi_pn_mst = round(phi_pn_os, 2)
+            sr_mst = sr_os
+            status_mst = status_os
+
+        diff_sr = round(abs(sr_os - sr_mst), 3)
+        if sr_mst >= 0.10:
+            acc = max(0.0, 100.0 - (diff_sr / sr_mst * 100.0))
+        else:
+            acc = max(0.0, 100.0 - diff_sr * 100.0)
+
+        chk["pu_opensees_kn"] = round(pu_os, 2)
+        chk["phi_pn_opensees_kn"] = round(phi_pn_os, 2)
+        chk["sr_opensees"] = sr_os
+        chk["status_opensees"] = status_os
+        chk["pu_mst_kn"] = pu_mst
+        chk["phi_pn_mst_kn"] = phi_pn_mst
+        chk["sr_mst"] = sr_mst
+        chk["status_mst"] = status_mst
+        chk["diff_sr"] = diff_sr
+        chk["accuracy_pct"] = round(acc, 1)
+        chk["status_match"] = (status_os == status_mst)
         chk["member_count"] = len(mlist)
+
         member_checks.append(chk)
         sec_sr_map[sec_name] = chk
+
+    # Full side-by-side member comparison array (all members in tower)
+    member_comparison_rows = []
+    if rpt_lookup:
+        for mid, rinfo in sorted(rpt_lookup.items(), key=lambda kv: (int(kv[1].get("pnl") or 0), kv[0])):
+            sname = rinfo.get("sec_name") or f"SEC-{mid}"
+            a_val = next((m.get("a_m2") for m in members if int(m.get("id") or 0) == mid), 0.00094) or 0.00094
+            i_val = next((m.get("iy_m4") for m in members if int(m.get("id") or 0) == mid), 4.48e-8) or 4.48e-8
+            dims_m = parse_section_dimensions(sname, a_val, i_val)
+            kl_ovr = float(rinfo["kl_over_r"]) if rinfo.get("kl_over_r") else 50.0
+
+            os_f = abs(elem_axial_map.get(mid, 0.0)) if elem_axial_map else float(rinfo.get("pu_kn") or 0.0) * qz_scale
+            chk_m = check_angle_member_tia222g(
+                pu_kn=os_f,
+                length_m=1.5,
+                ag_mm2=dims_m["ag_mm2"],
+                r_min_mm=dims_m["r_min_mm"],
+                b_mm=dims_m["b_mm"],
+                t_mm=dims_m["t_mm"],
+                sec_name=sname,
+                kl_r_override=kl_ovr,
+            )
+            os_cap = chk_m["phi_pn_kn"]
+            os_ratio = round(os_f / max(os_cap, 1e-6), 3)
+            os_stat = "AMAN (OK)" if os_ratio <= 1.0 else "NOT OK (OVERSTRESS)"
+
+            mst_p = round(float(rinfo.get("pu_kn") or 0.0) * qz_scale, 2)
+            mst_cap = round(float(rinfo.get("phi_pn_kn") or os_cap), 2)
+            mst_ratio = round(float(rinfo.get("stress_ratio") or 0.0) * qz_scale, 3)
+            mst_stat = "AMAN (OK)" if mst_ratio <= 1.0 else "NOT OK (OVERSTRESS)"
+
+            d_sr = round(abs(os_ratio - mst_ratio), 3)
+            if mst_ratio >= 0.10:
+                acc_row = max(0.0, 100.0 - (d_sr / mst_ratio * 100.0))
+            else:
+                acc_row = max(0.0, 100.0 - d_sr * 100.0)
+
+            member_comparison_rows.append({
+                "pnl": int(rinfo.get("pnl") or 0),
+                "members": str(mid),
+                "typ": rinfo.get("typ") or "MBR",
+                "size": sname,
+                "kl_r": round(kl_ovr, 1),
+                "pu_opensees_kn": round(os_f, 2),
+                "phi_pn_opensees_kn": os_cap,
+                "sr_opensees": os_ratio,
+                "status_opensees": os_stat,
+                "pu_mst_kn": mst_p,
+                "phi_pn_mst_kn": mst_cap,
+                "sr_mst": mst_ratio,
+                "status_mst": mst_stat,
+                "diff_sr": d_sr,
+                "accuracy_pct": round(acc_row, 1),
+                "status_match": (os_stat == mst_stat),
+            })
 
     # Build 3D member stress map for MS Tower 3D color-coded viewer
     member_3d_stress = []
@@ -1048,6 +1164,8 @@ def build_engineering_report(
         "twist_sway_disp": twist_sway_summary,
         "device_loads": device_loads,
         "member_checks": member_checks,
+        "member_comparison_rows": member_comparison_rows,
+        "elem_axial": elem_axial_map,
         "member_3d_stress": member_3d_stress,
         "mst_comparison": mst_comparison,
         "anchor_baseplate": anchor_bp,

@@ -19,6 +19,9 @@ import io
 import math
 from datetime import datetime
 
+from opensees_model import check_angle_member_tia222g
+from parsers import parse_section_dimensions
+
 PHI = "\u03c6"
 
 _DESIGN_NOTES = f"""
@@ -100,7 +103,8 @@ def build_report_dataset(mst_report: dict, run: dict, tower: dict, app_version: 
     s = float(ws.get("qz_scale") or 1.0)
     rep = mst_report or {}
 
-    # 1) Member checking rows -------------------------------------------------------
+    # 1) Member checking rows with side-by-side OpenSeesPy and MS Tower -------------
+    elem_axial = eng.get("elem_axial") or {}
     members = []
     for r in rep.get("member_rows", []):
         row = dict(r)
@@ -116,6 +120,52 @@ def build_report_dataset(mst_report: dict, run: dict, tower: dict, app_version: 
         row["sr_mst"] = max(mst_srs) if mst_srs else 0.0
         flags = ("*" if row["sr_gov"] > 1.0 else "") + ("#" if "#" in (r.get("flags") or "") else "")
         row["flags"] = flags
+
+        # OpenSees axial force & TIA-222-G capacity
+        m1, m2 = r["m1"], r.get("m2")
+        m_range = range(m1, m2 + 1) if m2 else [m1]
+        forces = [abs(elem_axial.get(mid, 0.0)) for mid in m_range if mid in elem_axial]
+        c_pu_val = _num(row["c_pu"]) or 0.0
+        pu_os = max(forces) if forces else c_pu_val
+        kl_r_num = float("".join(c for c in r.get("klr", "") if c.isdigit() or c == ".") or 50.0)
+
+        dims = parse_section_dimensions(r.get("size") or "EA70X70X7", 0.00094, 4.48e-8)
+        chk_os = check_angle_member_tia222g(
+            pu_kn=pu_os,
+            length_m=1.5,
+            ag_mm2=dims["ag_mm2"],
+            r_min_mm=dims["r_min_mm"],
+            b_mm=dims["b_mm"],
+            t_mm=dims["t_mm"],
+            sec_name=r.get("size") or "EA70X70X7",
+            kl_r_override=kl_r_num,
+        )
+        phi_pn_os = chk_os["phi_pn_kn"]
+        sr_os = round(pu_os / max(phi_pn_os, 1e-6), 3)
+
+        phi_pn_mst = float(_num(r.get("c_pn")) or phi_pn_os)
+        sr_mst = float(_num(row["c_sr"]) or row["sr_mst"] or 0.0)
+        diff_sr = round(abs(sr_os - sr_mst), 3)
+        if sr_mst >= 0.10:
+            acc = max(0.0, 100.0 - (diff_sr / sr_mst * 100.0))
+        else:
+            acc = max(0.0, 100.0 - diff_sr * 100.0)
+
+        status_os = "OK" if sr_os <= 1.0 else "OVERSTRESS"
+        status_mst = "OK" if sr_mst <= 1.0 else "OVERSTRESS"
+
+        row["pu_opensees"] = round(pu_os, 2)
+        row["phi_pn_opensees"] = round(phi_pn_os, 2)
+        row["sr_opensees"] = sr_os
+        row["status_os"] = status_os
+        row["pu_mst"] = round(c_pu_val, 2)
+        row["phi_pn_mst"] = round(phi_pn_mst, 2)
+        row["sr_mst_val"] = round(sr_mst, 3)
+        row["status_mst"] = status_mst
+        row["diff_sr"] = diff_sr
+        row["accuracy_pct"] = round(acc, 1)
+        row["status_match"] = "COCOK" if status_os == status_mst else "BEDA"
+
         members.append(row)
 
     # 2) Reactions: F = D + s * (F_MS - D) -----------------------------------------
@@ -373,6 +423,24 @@ def render_mstower_report(ds: dict) -> str:
                      f"{d['elev_z_m']:8.2f}{d['qty']:4d}{d['qz_pa']:9.1f}{d['epa_total_m2']:9.3f}"
                      f"{d['fw_kn']:8.2f}{d['fw_factored_kn']:10.2f}{d['fd_factored_kn']:9.2f}")
         L.append(" ")
+    mem_checks = eng.get("member_checks") or []
+    if mem_checks:
+        L.append(" MEMBER CAPACITY CHECK (OPENSEESPY FEM vs MS TOWER V6)")
+        L.append("  Section           Qty   KL/r  Pu OS(kN) φPn OS(kN)  SR OS  Pu MST(kN) φPn MST(kN) SR MST  Acc(%) Status")
+        for m in mem_checks:
+            p_os = m.get("pu_opensees_kn", m.get("pu_kn", 0))
+            pn_os = m.get("phi_pn_opensees_kn", m.get("phi_pn_kn", 0))
+            sr_os = m.get("sr_opensees", m.get("stress_ratio", 0))
+            p_mst = m.get("pu_mst_kn", p_os)
+            pn_mst = m.get("phi_pn_mst_kn", pn_os)
+            sr_mst = m.get("sr_mst", sr_os)
+            acc = m.get("accuracy_pct", 100.0)
+            st = m.get("status_opensees", m.get("status", "OK"))
+            L.append(f"  {m['sec_name']:<17s}{m.get('member_count', 0):4d}{m.get('kl_over_r', 0):7.1f}"
+                     f"{p_os:10.1f}{pn_os:13.1f}{sr_os:7.3f}{p_mst:12.1f}{pn_mst:14.1f}{sr_mst:7.3f}"
+                     f"{acc:8.1f} {st}")
+        L.append(" ")
+
     cmp_rows = eng.get("mst_comparison") or []
     if cmp_rows:
         L.append(" CALIBRATION vs MS TOWER V6 (SR, TWIST/SWAY/DISP, SUPPORT REACTION)")
@@ -527,26 +595,54 @@ def build_calc_workbook(ds: dict) -> bytes:
 
     if ds["members"]:
         mrows = [[
-            r["pnl"], r["m1"], r.get("m2"), r["typ"], r["size"], _v(r["fy"]), _v(r["nb"]),
-            _v(r["c_case"]), _v(r["c_pu"]), r["curve"], r["klr"], _v(r["c_pn"]), _v(r["c_sr"]),
+            r["pnl"], _member_label(r), r["typ"], r["size"], _v(r["fy"]), r["klr"],
+            # MS Tower V6
+            r.get("pu_mst", _v(r["c_pu"])), r.get("phi_pn_mst", _v(r["c_pn"])), r.get("sr_mst_val", round(r["sr_mst"], 3)), r.get("status_mst", "OK"),
+            # OpenSeesPy FEM
+            r.get("pu_opensees", _v(r["c_pu"])), r.get("phi_pn_opensees", _v(r["c_pn"])), r.get("sr_opensees", round(r["sr_gov"], 3)), r.get("status_os", "OK"),
+            # Comparison
+            r.get("diff_sr", 0.0), r.get("accuracy_pct", 100.0), r.get("status_match", "COCOK"),
+            # MS Tower cases
+            _v(r["c_case"]), r["curve"],
             _v(r["t_case"]), _v(r["t_pu"]), _v(r["t_pn"]), _v(r["t_sr"]),
-            _v(r["j_case"]), _v(r["j_pu"]), _v(r["j_dia"]), _v(r["j_grade"]), r["j_type"], _v(r["j_pn"]), _v(r["j_sr"]),
-            r["flags"], round(r["sr_gov"], 3), round(r["sr_mst"], 3),
-            "OVERSTRESS" if r["sr_gov"] > 1.0 else "OK",
+            _v(r["j_case"]), _v(r["j_pu"]), f"{r.get('j_dia', '')}-{r.get('j_grade', '')}",
+            _v(r["j_pn"]), _v(r["j_sr"]), r["flags"],
         ] for r in ds["members"]]
+        member_cols = [
+            ("Pnl", 5), ("Members", 10), ("Typ", 6), ("Size", 14), ("fy (MPa)", 8), ("KL/r", 7),
+            ("Pu MST (kN)", 11), ("φPn MST (kN)", 12), ("SR MST", 11), ("Status MST", 12),
+            ("Pu OpenSees (kN)", 12), ("φPn OpenSees (kN)", 13), ("SR OpenSees", 11), ("Status OpenSees", 13),
+            ("ΔSR (|OS - MST|)", 12), ("Akurasi (%)", 11), ("Kesesuaian", 12),
+            ("C-Case", 8), ("Curve", 7),
+            ("T-Case", 8), ("T Pu (kN)", 9), ("T φPn (kN)", 10), ("T Pu/φPn", 9),
+            ("J-Case", 8), ("J Pu (kN)", 9), ("Baut Dia-Gr", 11),
+            ("J φPn (kN)", 10), ("J Pu/φPn", 9), ("Flag", 6),
+        ]
+        member_fmts = {7: "0.00", 8: "0.00", 9: "0.000", 11: "0.00", 12: "0.00", 13: "0.000", 15: "0.000", 16: "0.0", 21: "0.00", 22: "0.00", 23: "0.000", 25: "0.00", 27: "0.00", 28: "0.000"}
+        sr_columns = (9, 13)
     else:
-        mrows = [[0, c.get("member_count"), None, "MBR", c["sec_name"], 245, None, None, c["pu_kn"], None,
-                  c["kl_over_r"], c["phi_pn_kn"], c["stress_ratio"], None, None, None, None, None, None, None,
-                  None, None, None, None, "*" if c["stress_ratio"] > 1 else "", c["stress_ratio"], None,
-                  "OVERSTRESS" if c["stress_ratio"] > 1 else "OK"] for c in eng.get("member_checks") or []]
-    sheet("Member Check", "Member Checking to TIA-222-G (format MS Tower V6)",
-          [("Pnl", 5), ("Member", 8), ("s/d", 7), ("Typ", 6), ("Size", 14), ("fy (MPa)", 8), ("nb", 5),
-           ("C-Case", 8), ("C Pu (kN)", 9), ("Curve", 7), ("KL/r", 7), ("C φPn (kN)", 10), ("C Pu/φPn", 9),
-           ("T-Case", 8), ("T Pu (kN)", 9), ("T φPn (kN)", 10), ("T Pu/φPn", 9),
-           ("J-Case", 8), ("J Pu (kN)", 9), ("Dia", 6), ("Grade", 7), ("Type", 7), ("J φPn (kN)", 10), ("J Pu/φPn", 9),
-           ("Flag", 6), ("SR Governing", 11), ("SR MS Tower", 11), ("Status", 12)],
-          mrows, num_formats={13: "0.000", 17: "0.000", 24: "0.000", 26: "0.000", 27: "0.000"},
-          sr_cols=(13, 17, 26))
+        mrows = [[
+            0, str(c.get("member_count") or 1), "MBR", c["sec_name"], 245, c["kl_over_r"],
+            c.get("pu_mst_kn", c["pu_kn"]), c.get("phi_pn_mst_kn", c["phi_pn_kn"]), c.get("sr_mst", c["stress_ratio"]), c.get("status_mst", c["status"]),
+            c.get("pu_opensees_kn", c["pu_kn"]), c.get("phi_pn_opensees_kn", c["phi_pn_kn"]), c.get("sr_opensees", c["stress_ratio"]), c.get("status_opensees", c["status"]),
+            c.get("diff_sr", 0.0), c.get("accuracy_pct", 100.0), "COCOK" if c.get("status_match", True) else "BEDA",
+            "-", "-", "-", None, None, None, "-", None, "-", None, None, "*" if c["stress_ratio"] > 1 else "",
+        ] for c in eng.get("member_checks") or []]
+        member_cols = [
+            ("Pnl", 5), ("Members", 10), ("Typ", 6), ("Size", 14), ("fy (MPa)", 8), ("KL/r", 7),
+            ("Pu MST (kN)", 11), ("φPn MST (kN)", 12), ("SR MST", 11), ("Status MST", 12),
+            ("Pu OpenSees (kN)", 12), ("φPn OpenSees (kN)", 13), ("SR OpenSees", 11), ("Status OpenSees", 13),
+            ("ΔSR (|OS - MST|)", 12), ("Akurasi (%)", 11), ("Kesesuaian", 12),
+            ("C-Case", 8), ("Curve", 7),
+            ("T-Case", 8), ("T Pu (kN)", 9), ("T φPn (kN)", 10), ("T Pu/φPn", 9),
+            ("J-Case", 8), ("J Pu (kN)", 9), ("Baut Dia-Gr", 11),
+            ("J φPn (kN)", 10), ("J Pu/φPn", 9), ("Flag", 6),
+        ]
+        member_fmts = {7: "0.00", 8: "0.00", 9: "0.000", 11: "0.00", 12: "0.00", 13: "0.000", 15: "0.000", 16: "0.0"}
+        sr_columns = (9, 13)
+
+    sheet("Member Check", "Member Checking to TIA-222-G (Komparasi OpenSeesPy FEM vs MS Tower V6)",
+          member_cols, mrows, num_formats=member_fmts, sr_cols=sr_columns)
 
     # 5) Mass summary -----------------------------------------------------------------
     mass_rows = [[m["sect"], m["size"], m["flag"], m["fy"], m["length_m"], m["mass_kg"]] for m in ds["mass_summary"]]

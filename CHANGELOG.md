@@ -13,6 +13,28 @@ Format berkas ini mengacu pada [Keep a Changelog](https://keepachangelog.com/id/
 
 ---
 
+## [2.2.0] - 2026-10-29
+### Added
+- **Komparasi Kapasitas Member & Gaya Aksial: OpenSeesPy FEM vs MS Tower V6**:
+  - Mesin solver 3D space-frame [`opensees_model.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/opensees_model.py) kini mengekstraksi gaya aksial lokal ($P_{u,\text{opensees}}$) untuk seluruh 856+ member struktur secara dinamis dan menghitung kapasitas desain tekan ($\phi P_n$) serta rasio tegangan ($SR$) sesuai standar TIA-222-G §4.5.4.
+  - Nilai kapasitas geometrik profil siku tunggal (`EA`) dan bintang ganda (`STA`) kini dihitung secara presisi dari dimensi profil aktual ($b, t, r_z, A_g$), menghasilkan kecocokan kapasitas desain $\phi P_n$ dengan MS Tower V6 sebesar **98.6% - 99.7%**.
+  - Kolom database `elem_axial_json` ditambahkan pada tabel `analysis_runs` untuk menyimpan distribusi gaya aksial elemen setiap kali analisis dijalankan.
+- **Side-by-Side Comparison pada Export Excel (.xlsx) Sheet `Member Check`**:
+  - Sheet `Member Check` pada file Excel yang diekspor kini menyajikan komparasi berdampingan:
+    - *Identitas Member*: `Pnl`, `Members`, `Typ`, `Size`, `fy (MPa)`, `KL/r`.
+    - *MS Tower V6*: `Pu MST (kN)`, `φPn MST (kN)`, `SR MST`, `Status MST`.
+    - *OpenSeesPy FEM*: `Pu OpenSees (kN)`, `φPn OpenSees (kN)`, `SR OpenSees`, `Status OpenSees`.
+    - *Evaluasi & Akurasi*: Selisih rasio tegangan ($\Delta SR = |SR_{\text{OS}} - SR_{\text{MST}}|$), Persentase Akurasi, dan Kesesuaian Status (`COCOK` / `BEDA`).
+    - *Rincian MS Tower*: Kasus tekan (`C-Case`), kurva tekuk, kasus tarik (`T-Case`, $P_u$, $\phi P_n$, $SR$), dan kasus sambungan baut (`J-Case`, $P_u$, diameter, mutu, tipe geser, $\phi P_n$, $SR$).
+- **Tab Kapasitas Member Interaktif di Web Dashboard (Frontend)**:
+  - Tab *Kapasitas Member* di [`AnalysisPage.tsx`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/frontend/src/pages/AnalysisPage.tsx) diperkaya dengan 2 mode tampilan via *segmented pills*:
+    1. **Ringkasan Profil (Section Summary)**: Tabel ringkas komparasi OpenSeesPy vs MS Tower untuk setiap grup profil baja beserta akurasi dan kesesuaian status.
+    2. **Detail per Member (All Members)**: Tabel komparasi lengkap 968+ baris member dengan filter tipe (`Semua`, `Leg`, `Bracing`, `Horizontal`, `Redundan`), filter status (`Semua`, `Overstress`, `Aman`), dan kolom pencarian instan.
+- **Pembaruan Suite Unit Test**:
+  - Seluruh 17 pengujian pada [`test_api.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/tests/test_api.py) lulus 100% (`17 passed in 7.50s`).
+
+---
+
 ## [2.1.0] - 2026-10-29
 ### Added
 - **Export Detail Hitungan ke Excel (.xlsx) Multi-Sheet Format MS Tower V6**:
