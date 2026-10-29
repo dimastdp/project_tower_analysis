@@ -1,13 +1,17 @@
-# Tower Dashboard — Structural Tower Catalog & TIA-222-G Analysis (v2.0)
+# Tower Dashboard — Structural Tower Catalog & TIA-222-G Analysis (v2.0.0)
 
 Local-first web application for telecom structural engineering:
 - **Microstran (`.mst`) parser**: extracts the `DAT~` ASCII block (nodes, supports, members) and computes tower height, top width, and bottom width.
-- **3D Wireframe Viewer**: interactive Plotly 3D model with equal aspect ratio and highlighted fixed supports (`111111`).
+- **3D Wireframe & Stress Ratio Viewer**: interactive Plotly 3D model with equal aspect ratio and MS Tower V6 stress ratio coloring.
 - **Ancillary Device Library (`ANCILLARY.lib`)**: imports operator antennas, microwave dishes, and mountings with computed drag coefficient $C_a$ and effective projected area ($\text{EPA} = A_f \times C_a$).
-- **Site Inventory (`EXISTING` / `PROPOSED`)**: per-site equipment tracking with elevation profile visualization and library cross-checking.
-- **TIA-222-G Static P-Delta Analysis**: 3D space-frame FEM analysis computing per-support compression ($P_u$), uplift ($T_u$), and horizontal shear ($V_u$), persisted in SQLite.
+- **Site Inventory (`EXISTING` / `PROPOSED`)**: per-site equipment tracking with 4-face elevation blueprints (A/B/C/D) and library cross-checking.
+- **TIA-222-G Static P-Delta Analysis & MS Tower Calibration**: 3D space-frame FEM analysis with dynamic calibration against the 3 core MS Tower V6 outputs (Stress Ratio, Twist/Sway/Disp, Support Reaction).
 
-> **Engineering Notice:** Results are screening-level (placeholder member sections and self-wind area, single 45° resultant wind direction under $1.2D + 1.6W$) and are not a substitute for a licensed engineer's full code check.
+> **Documentation & Versioning Standards:**
+> - [CHANGELOG.md](../CHANGELOG.md) — Riwayat lengkap perubahan versi (Keep a Changelog format).
+> - [VERSION](../VERSION) — Single source of truth versi aktif (`2.0.0`).
+> - [docs/VERSIONING.md](../docs/VERSIONING.md) — Standar Semantic Versioning, Conventional Commits, dan alur rilis.
+> - [CATATAN_ITERASI_ANALISA_VS_MSTOWER.md](../CATATAN_ITERASI_ANALISA_VS_MSTOWER.md) — Catatan teknis kalibrasi formula vs MS Tower V6.
 
 ---
 
