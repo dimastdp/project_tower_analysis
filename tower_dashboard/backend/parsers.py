@@ -555,6 +555,254 @@ def parse_mst_embedded_results(raw_bytes: bytes) -> dict:
     }
 
 
+_RPT_F = r"[+-]?\d+\.\d+"
+_RPT_MEMBER_HEAD = re.compile(r"^\s*(\d+)\s+(\d+)(?:-\s*(\d+))?\s+([A-Z]{2,4})\s+(\S+)\s+(.*)$")
+_RPT_REACT_ROW = re.compile(
+    rf"^\s*(?:(\d+)\s+)?(\d+)\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s*$"
+)
+_RPT_RESULTANT = re.compile(
+    rf"^\s*Resultant\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})"
+)
+_RPT_ENV_ROW = re.compile(
+    r"^\s*(\d+)\s+([\d.]+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+([\d.]+)\s*$"
+)
+_RPT_ANC_HEAD = re.compile(
+    rf"^\s(\S.{{0,16}}?)\s+({_RPT_F})\s+({_RPT_F})\s+(\d+)\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s*$"
+)
+_RPT_ANC_CONT = re.compile(rf"^\s{{20,}}(\d+)\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s*$")
+_RPT_DISP_ROW = re.compile(
+    rf"^\s*(\d+)\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s*$"
+)
+_RPT_NODE_CASE_ROW = re.compile(
+    rf"^\s*(?:(\d+)\s+)?(\d+)\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s+({_RPT_F})\s*$"
+)
+
+
+def _rpt_text(raw_bytes: bytes) -> str:
+    """Return the RPT~ block as clean text (DOS cp437 so 'φ' renders correctly)."""
+    idx = raw_bytes.find(b"RPT~")
+    if idx == -1:
+        return ""
+    end = raw_bytes.find(b"EOF~", idx)
+    chunk = raw_bytes[idx:end if end != -1 else len(raw_bytes)]
+    text = chunk.decode("cp437", errors="replace")
+    return "".join(ch if (ch >= " " or ch in "\r\n\t") else " " for ch in text).replace("\r\n", "\n")
+
+
+def _rpt_load_cases(lines: list[str], start: int) -> tuple[list[dict], int]:
+    cases = []
+    i = start
+    while i < len(lines):
+        m = re.match(r"^\s*(\d+)\s+([YN])\s+(.*?)\s*$", lines[i])
+        if m:
+            cases.append({"case": int(m.group(1)), "used": m.group(2), "title": m.group(3)})
+        elif cases and lines[i].strip() == "":
+            break
+        i += 1
+    return cases, i
+
+
+def parse_mst_report(raw_bytes: bytes) -> dict:
+    """Parse the complete MS Tower V6 report embedded in RPT~ into row-level tables.
+
+    Sections: member checking (TIA-222-G), mass summary, support reactions (applied to
+    tower & along leg), envelope of tower rotations, ancillary rotations, node displacements.
+    """
+    text = _rpt_text(raw_bytes)
+    out: dict = {
+        "available": bool(text),
+        "header": {"program": "", "job": "", "title": [], "date": ""},
+        "check_cases": [],
+        "reaction_cases": [],
+        "rotation_cases": [],
+        "member_rows": [],
+        "mass_summary": [],
+        "mass_total_kg": 0.0,
+        "centroid": None,
+        "reactions": [],
+        "reactions_leg": [],
+        "rot_env_3node": [],
+        "rot_env_leg": [],
+        "ancillary_rot": [],
+        "displacements": [],
+        "raw_text": text,
+    }
+    if not text:
+        return out
+
+    lines = text.split("\n")
+    hdr = out["header"]
+    m_prog = re.search(r"(MSTOWER V6 Member checking[^\n]*)", text)
+    hdr["program"] = m_prog.group(1).strip() if m_prog else "MSTOWER V6"
+
+    section = "check"
+    i = 0
+    cur_case = None
+    cur_disp = None
+    cur_anc = None
+    cur_node = 0
+    disp_by_case: dict[int, dict] = {}
+    react_by_case: dict[int, dict] = {}
+    while i < len(lines):
+        ln = lines[i]
+        s = ln.strip()
+
+        # --- header / section switches -------------------------------------------------
+        if s.startswith("Job:") and not hdr["job"]:
+            hdr["job"] = s.split(":", 1)[1].strip()
+        elif s.startswith("Title:") and not hdr["title"]:
+            hdr["title"].append(s.split(":", 1)[1].strip())
+            if i + 1 < len(lines) and lines[i + 1].startswith("   ") and lines[i + 1].strip() and ":" not in lines[i + 1]:
+                hdr["title"].append(lines[i + 1].strip())
+        elif s.startswith("Date:") and not hdr["date"]:
+            hdr["date"] = s.split(":", 1)[1].strip()
+        elif s.startswith("Mstower V6 Reactions"):
+            section = "reactions"
+        elif s.startswith("Mstower V6 Ancillary"):
+            section = "rotations"
+        elif s.startswith("SUPPORT REACTIONS (Applied"):
+            section, cur_case = ("react" if not out["reactions"] else "skip"), None
+        elif s.startswith("SUPPORT REACTIONS (Along"):
+            section, cur_case = ("react_leg" if not out["reactions_leg"] else "skip"), None
+        elif s.startswith("-- S U P P O R T   R E A C T I O N S --"):
+            section = "an_react" if not out["reactions"] else "skip"
+        elif s.startswith("-- S U M   O F") or s.startswith("-- R E S I D U A L S"):
+            section = "skip"
+        elif s.startswith("-- N O D E   D I S P L A C E M E N T S --"):
+            section = "analysis"
+        elif s.startswith("ENVELOPE OF TOWER ROTATIONS") and "3 node" in s:
+            section = "env3"
+        elif s.startswith("ENVELOPE OF TOWER ROTATIONS"):
+            section = "envleg"
+        elif s.startswith("ROTATIONS OF ANCILLARY"):
+            section = "anc"
+        elif s.startswith("-- I N P U T / A N A L Y S I S"):
+            section = "analysis"
+        elif s.startswith("Mass Summary"):
+            section = "mass"
+        elif s.startswith("-- L O A D   C A S E S --"):
+            cases, j = _rpt_load_cases(lines, i + 2)
+            key = {"check": "check_cases", "reactions": "reaction_cases", "rotations": "rotation_cases"}.get(section)
+            if key and not out[key]:
+                out[key] = cases
+            i = j
+            continue
+        elif s.startswith("Centroid of supports:"):
+            nums = re.findall(_RPT_F, s)
+            if len(nums) == 3:
+                out["centroid"] = [float(x) for x in nums]
+
+        # --- section bodies ------------------------------------------------------------
+        elif section == "check":
+            m = _RPT_MEMBER_HEAD.match(ln)
+            if m:
+                toks = m.group(6).split()
+                if len(toks) >= 19 and toks[0].isdigit():
+                    out["member_rows"].append({
+                        "pnl": int(m.group(1)), "m1": int(m.group(2)),
+                        "m2": int(m.group(3)) if m.group(3) else None,
+                        "typ": m.group(4), "size": m.group(5),
+                        "fy": toks[0], "nb": toks[1],
+                        "c_case": toks[2], "c_pu": toks[3], "curve": toks[4], "klr": toks[5],
+                        "c_pn": toks[6], "c_sr": toks[7],
+                        "t_case": toks[8], "t_pu": toks[9], "t_pn": toks[10], "t_sr": toks[11],
+                        "j_case": toks[12], "j_pu": toks[13], "j_dia": toks[14], "j_grade": toks[15],
+                        "j_type": toks[16], "j_pn": toks[17], "j_sr": toks[18],
+                        "flags": "".join(toks[19:]),
+                    })
+        elif section == "mass":
+            m = re.match(r"^\s*(\d+)\s+(\S+)\s+([YN])\s+(\d+)\s+([\d.]+)\s+([\d.]+)\s*$", ln)
+            if m:
+                out["mass_summary"].append({
+                    "sect": int(m.group(1)), "size": m.group(2), "flag": m.group(3),
+                    "fy": int(m.group(4)), "length_m": float(m.group(5)), "mass_kg": float(m.group(6)),
+                })
+            elif re.match(r"^\s+[\d.]+\s*$", ln) and out["mass_summary"]:
+                out["mass_total_kg"] = float(s)
+        elif section in ("react", "react_leg"):
+            key = "reactions" if section == "react" else "reactions_leg"
+            m_res = _RPT_RESULTANT.match(ln)
+            m_row = _RPT_REACT_ROW.match(ln)
+            if m_res and cur_case is not None:
+                cur_case["resultant"] = [float(m_res.group(k)) for k in range(1, 7)]
+            elif m_row:
+                if m_row.group(1):
+                    cur_case = {"case": int(m_row.group(1)), "rows": [], "resultant": None}
+                    out[key].append(cur_case)
+                if cur_case is not None:
+                    cur_case["rows"].append({
+                        "id": int(m_row.group(2)),
+                        "f": [float(m_row.group(k)) for k in range(3, 9)],
+                    })
+        elif section in ("env3", "envleg"):
+            m = _RPT_ENV_ROW.match(ln)
+            if m:
+                (out["rot_env_3node"] if section == "env3" else out["rot_env_leg"]).append({
+                    "pt": int(m.group(1)), "height": float(m.group(2)),
+                    "lc_x": int(m.group(3)), "x_rot": float(m.group(4)),
+                    "lc_y": int(m.group(5)), "y_rot": float(m.group(6)),
+                    "lc_z": int(m.group(7)), "z_rot": float(m.group(8)),
+                })
+        elif section == "anc":
+            m_h = _RPT_ANC_HEAD.match(ln)
+            m_c = _RPT_ANC_CONT.match(ln)
+            if m_c and cur_anc is not None:
+                cur_anc["rows"].append({"case": int(m_c.group(1)), "rot": [float(m_c.group(k)) for k in (2, 3, 4)]})
+            elif m_h:
+                cur_anc = {
+                    "name": m_h.group(1).strip(), "height": float(m_h.group(2)), "bearing": float(m_h.group(3)),
+                    "rows": [{"case": int(m_h.group(4)), "rot": [float(m_h.group(k)) for k in (5, 6, 7)]}],
+                }
+                out["ancillary_rot"].append(cur_anc)
+        elif section == "analysis":
+            m_case = re.match(r"^\s*CASE\s+(\d+):\s*(.*?)\s*$", ln)
+            m_d = _RPT_DISP_ROW.match(ln)
+            m_nc = _RPT_NODE_CASE_ROW.match(ln)
+            if m_case:
+                cur_disp = {"case": int(m_case.group(1)), "title": m_case.group(2), "rows": []}
+                out["displacements"].append(cur_disp)
+            elif m_d and cur_disp is not None:
+                cur_disp["rows"].append({"node": int(m_d.group(1)), "d": [float(m_d.group(k)) for k in range(2, 8)]})
+            elif m_nc:
+                # node-major layout: "Node Case X-Disp ..." -> regroup per case
+                if m_nc.group(1):
+                    cur_node = int(m_nc.group(1))
+                case_no = int(m_nc.group(2))
+                bucket = disp_by_case.get(case_no)
+                if bucket is None:
+                    bucket = {"case": case_no, "title": "", "rows": []}
+                    disp_by_case[case_no] = bucket
+                    out["displacements"].append(bucket)
+                bucket["rows"].append({"node": cur_node, "d": [float(m_nc.group(k)) for k in range(3, 9)]})
+        elif section == "an_react":
+            m_nc = _RPT_NODE_CASE_ROW.match(ln)
+            if m_nc:
+                if m_nc.group(1):
+                    cur_node = int(m_nc.group(1))
+                case_no = int(m_nc.group(2))
+                bucket = react_by_case.get(case_no)
+                if bucket is None:
+                    bucket = {"case": case_no, "rows": [], "resultant": None}
+                    react_by_case[case_no] = bucket
+                bucket["rows"].append({"id": cur_node, "f": [float(m_nc.group(k)) for k in range(3, 9)]})
+        i += 1
+
+    if react_by_case and not out["reactions"]:
+        for case_no in sorted(react_by_case):
+            b = react_by_case[case_no]
+            b["resultant"] = [round(sum(r["f"][k] for r in b["rows"]), 3) for k in range(3)] + [0.0, 0.0, 0.0]
+            b["resultant_partial"] = True
+            out["reactions"].append(b)
+    for case_list in (out["reactions"],):
+        known = {c["case"] for c in out["reaction_cases"]}
+        for c in case_list:
+            if c["case"] not in known:
+                out["reaction_cases"].append({"case": c["case"], "used": "Y", "title": ""})
+                known.add(c["case"])
+
+    return out
+
+
 def summarize_geometry(nodes: dict[int, dict]) -> dict:
     """Height and top/bottom widths computed from the structural nodes."""
     pts = [n for n in nodes.values() if is_structural(n)]

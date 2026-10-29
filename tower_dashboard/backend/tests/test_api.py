@@ -17,7 +17,7 @@ def test_health(client):
 
 def test_version(client):
     res = client.get("/api/version").json()
-    assert res["version"] == "2.0.0"
+    assert res["version"] == "2.1.0"
     assert "TIA-222-G" in res["standard"]
 
 
@@ -105,3 +105,30 @@ def test_delete_tower_cascades(client, samples):
     client.post("/api/sites/SAMPLE-4LEG/analysis", json={"wind_speed_ms": 30})
     assert client.delete("/api/towers/SAMPLE-4LEG").status_code == 204
     assert client.get("/api/towers").json() == []
+
+
+def test_analysis_report_and_exports(client, samples):
+    _upload(client, samples)
+    _import_lib(client, samples)
+    client.post("/api/sites/SAMPLE-4LEG/analysis", json={"wind_speed_ms": 30})
+
+    # 1) JSON report
+    rep = client.get("/api/sites/SAMPLE-4LEG/analysis/report")
+    assert rep.status_code == 200
+    data = rep.json()
+    assert data["site_name"] == "SAMPLE-4LEG"
+    assert "Member checking to TIA-222-G" in data["report_text"]
+
+    # 2) Text report (.rpt)
+    rpt = client.get("/api/sites/SAMPLE-4LEG/analysis/export/rpt")
+    assert rpt.status_code == 200
+    assert "attachment" in rpt.headers["content-disposition"]
+    assert "SAMPLE-4LEG_MSTOWER_REPORT.rpt" in rpt.headers["content-disposition"]
+    assert "SUPPORT REACTIONS" in rpt.text
+
+    # 3) Excel workbook (.xlsx)
+    xls = client.get("/api/sites/SAMPLE-4LEG/analysis/export/excel")
+    assert xls.status_code == 200
+    assert "spreadsheetml.sheet" in xls.headers["content-type"]
+    assert "SAMPLE-4LEG_DETAIL_HITUNGAN_MSTOWER.xlsx" in xls.headers["content-disposition"]
+    assert len(xls.content) > 5000

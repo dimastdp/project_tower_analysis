@@ -277,3 +277,25 @@ export interface AnalysisResult {
   warnings: string[];
   engineering?: EngineeringReport;
 }
+
+export interface MsTowerReportResult {
+  site_name: string;
+  run_id: number;
+  created_at: string;
+  wind_speed_ms: number;
+  scale: number;
+  has_rpt: boolean;
+  header: {
+    program: string;
+    job: string;
+    title: string[];
+    date: string;
+  };
+  member_rows_count: number;
+  reaction_cases_count: number;
+  rotation_points_count: number;
+  ancillary_count: number;
+  displacement_cases_count: number;
+  mass_total_kg: number;
+  report_text: string;
+}

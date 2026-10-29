@@ -13,6 +13,35 @@ Format berkas ini mengacu pada [Keep a Changelog](https://keepachangelog.com/id/
 
 ---
 
+## [2.1.0] - 2026-10-29
+### Added
+- **Export Detail Hitungan ke Excel (.xlsx) Multi-Sheet Format MS Tower V6**:
+  - Dibuat modul [`report_export.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/report_export.py) dengan generator workbook Excel 12 sheet:
+    1. *Ringkasan*: Metadata menara, job, run ID, ringkasan beban & status rekomendasi.
+    2. *Parameter Angin*: Parameter TIA-222-G (Kz, qz, Gh, Kd, Kzt, faktor skala $s = q_z/q_{z,\text{ref}}$).
+    3. *Beban Perangkat*: Breakdown gaya angin dan berat mati per perangkat inventori.
+    4. *Member Check*: Pemeriksaan kapasitas aksial tekan, tarik, dan sambungan baut per-panel (532+ baris sesuai `RPT~`) lengkap dengan *conditional formatting* warna merah untuk member overstress ($SR > 1.0$).
+    5. *Mass Summary*: Rangkuman panjang profil dan total massa baja menara.
+    6. *Support Reactions*: Reaksi tumpuan tekan ($P_u$), tarik ($T_u$), geser ($V_u$), dan momen guling per kasus beban (Applied to tower).
+    7. *Reactions Along Leg*: Reaksi tumpuan sejajar kaki menara.
+    8. *Tower Rotations*: Envelope kemiringan (*sway*) dan puntir torsi (*twist*) sepanjang elevasi menara.
+    9. *Ancillary Rotations*: Rotasi sumbu antena & perangkat pada elevasi masing-masing.
+    10. *Node Displacements*: Deformasi translasi dan rotasi node pada kecepatan angin operasional (84 km/jam).
+    11. *Kalibrasi MS Tower*: Matriks akurasi 3 parameter utama vs MS Tower V6.
+    12. *Anchor & Pondasi*: Pemeriksaan tegangan tarik/geser baut angkur, tebal base plate, daya dukung tanah, dan angka keamanan guling pondasi.
+- **Export Detail Report Perhitungan Format MS Tower V6 (.rpt)**:
+  - Format teks 1:1 identik dengan report bawaan MS Tower V6 (`MSTOWER V6 Member checking to TIA-222-G`, `Mstower V6 Reactions`, `Mstower V6 Ancillary Rotations`, dan `-- I N P U T / A N A L Y S I S   R E P O R T --`).
+  - Dilengkapi faktor skala dinamis $s = q_z(V, \text{exp}) / q_{z,\text{ref}}(V_{\text{ref}}, \text{exp}_{\text{ref}})$ dengan superposisi linier beban mati ($F = D + s \cdot (F_{\text{MS}} - D)$).
+- **Tab & Viewer Interaktif Detail Report MS Tower di Frontend**:
+  - Tab baru *Detail Report MS Tower (RPT~)* di halaman Analisis dengan *section pills* (Semua, Member Checking, Reactions, Rotations, Displacements, Ringkasan).
+  - Terminal code viewer dengan penomoran baris, pencarian teks instan, penyorotan baris overstress (`*#`), tombol *Salin Report*, *Download .rpt*, dan *Download Excel (.xlsx)*.
+- **Endpoint REST API**:
+  - `GET /api/sites/{site}/analysis/report`: Mengembalikan JSON teks report lengkap & metadata statistik.
+  - `GET /api/sites/{site}/analysis/export/rpt`: Mengunduh file `{site}_MSTOWER_REPORT.rpt`.
+  - `GET /api/sites/{site}/analysis/export/excel`: Mengunduh file `{site}_DETAIL_HITUNGAN_MSTOWER.xlsx`.
+
+---
+
 ## [2.0.0] - 2026-10-28
 ### Added
 - **Apple Cupertino HIG / Apple Pro Studio UI Redesign**:
@@ -70,3 +99,4 @@ Format berkas ini mengacu pada [Keep a Changelog](https://keepachangelog.com/id/
   - Mesin Analisis FEM Statis P-Delta TIA-222-G berbasis OpenSeesPy.
   - Dashboard frontend React 18 + Vite + TypeScript dengan viewer 3D interaktif Plotly.
   - Penyimpanan data lokal SQLite (`tower_catalog.db`).
+

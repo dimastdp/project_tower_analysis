@@ -15,8 +15,40 @@ const MSTOWER_STRESS_LEGEND = [
   { label: "> 1.00 OVERSTRESS", color: "#dc2626" },
 ];
 
-type AnalysisTab = "calibration" | "members" | "devices" | "foundation";
+type AnalysisTab = "calibration" | "report" | "members" | "devices" | "foundation";
 type CalibCategoryFilter = "ALL" | "SR" | "TWIST_SWAY_DISP" | "SUPPORT_REACTION";
+type ReportSectionFilter = "ALL" | "MEMBER_CHECK" | "REACTIONS" | "ROTATIONS" | "DISPLACEMENTS" | "SUMMARY";
+
+function sliceReportSection(fullText: string, section: ReportSectionFilter): string {
+  if (!fullText || section === "ALL") return fullText;
+  const idxReactions = fullText.indexOf("Reactions (format Mstower V6");
+  const idxRotations = fullText.indexOf("Ancillary Rotations (format Mstower V6");
+  const idxInput = fullText.indexOf("-- I N P U T / A N A L Y S I S   R E P O R T --");
+  const idxSummary = fullText.indexOf("-- T O W E R   S T U D I O   C A L C U L A T I O N   S U M M A R Y --");
+
+  if (section === "MEMBER_CHECK") {
+    return idxReactions !== -1 ? fullText.slice(0, idxReactions).trimEnd() : fullText;
+  }
+  if (section === "REACTIONS") {
+    if (idxReactions === -1) return "Bagian SUPPORT REACTIONS tidak ditemukan.";
+    const end = idxRotations !== -1 ? idxRotations : idxInput !== -1 ? idxInput : fullText.length;
+    return fullText.slice(idxReactions, end).trimEnd();
+  }
+  if (section === "ROTATIONS") {
+    if (idxRotations === -1) return "Bagian ANCILLARY ROTATIONS / TWIST & SWAY tidak ditemukan.";
+    const end = idxInput !== -1 ? idxInput : idxSummary !== -1 ? idxSummary : fullText.length;
+    return fullText.slice(idxRotations, end).trimEnd();
+  }
+  if (section === "DISPLACEMENTS") {
+    if (idxInput === -1) return "Bagian NODE DISPLACEMENTS tidak ditemukan.";
+    const end = idxSummary !== -1 ? idxSummary : fullText.length;
+    return fullText.slice(idxInput, end).trimEnd();
+  }
+  if (section === "SUMMARY") {
+    return idxSummary !== -1 ? fullText.slice(idxSummary).trimEnd() : fullText;
+  }
+  return fullText;
+}
 
 const CATEGORY_LABELS: Record<string, { badge: string; colorClass: string }> = {
   SR: { badge: "Stress Ratio (SR)", colorClass: "info" },
@@ -36,6 +68,8 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AnalysisTab>("calibration");
   const [calibFilter, setCalibFilter] = useState<CalibCategoryFilter>("ALL");
+  const [reportSection, setReportSection] = useState<ReportSectionFilter>("ALL");
+  const [reportSearch, setReportSearch] = useState("");
 
   const [preflightModal, setPreflightModal] = useState<PreflightResult | null>(null);
   const [selectedReplacements, setSelectedReplacements] = useState<Record<number, string>>({});
@@ -63,6 +97,12 @@ export default function AnalysisPage() {
     queryKey: ["preflight", site],
     queryFn: () => api.preflightAnalysis(site!),
     enabled: !!site,
+  });
+
+  const mstReport = useQuery({
+    queryKey: ["analysis-report", site, latest.data?.run_id],
+    queryFn: () => api.analysisReport(site!),
+    enabled: !!site && !!latest.data,
   });
 
   useEffect(() => {
@@ -94,6 +134,7 @@ export default function AnalysisPage() {
       setError(null);
       setPreflightModal(null);
       qc.setQueryData<AnalysisResult | null>(["analysis", site], res);
+      qc.invalidateQueries({ queryKey: ["analysis-report", site] });
       toast(
         `Analisis selesai: SR maks = ${Math.max(...(res.engineering?.member_checks?.map((m) => m.stress_ratio) ?? [0])).toFixed(3)}, Pu,max = ${res.max_pu_kn.toFixed(2)} kN`,
       );
@@ -446,7 +487,30 @@ export default function AnalysisPage() {
           </div>
 
           {eng && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <a
+                href={api.exportExcelUrl(site)}
+                download
+                className="btn-link tinted sm"
+                title="Download detail hitungan format Excel (.xlsx) 11 Sheet MS Tower V6"
+              >
+                Export Excel (.xlsx)
+              </a>
+              <a
+                href={api.exportRptUrl(site)}
+                download
+                className="btn-link secondary sm"
+                title="Download detail report perhitungan format MS Tower V6 (.rpt)"
+              >
+                Export Report (.rpt)
+              </a>
+              <button
+                type="button"
+                className="secondary sm"
+                onClick={() => setActiveTab("report")}
+              >
+                Detail Report MS Tower
+              </button>
               <span
                 className={`badge ${
                   eng.recommendation === "NO NEED PERKUATAN"
@@ -513,6 +577,15 @@ export default function AnalysisPage() {
                 onClick={() => setActiveTab("calibration")}
               >
                 Kalibrasi MS Tower (SR · Twist/Sway · Reaction)
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "report"}
+                className={`sheet-tab ${activeTab === "report" ? "active" : ""}`}
+                onClick={() => setActiveTab("report")}
+              >
+                Detail Report MS Tower (RPT~)
               </button>
               <button
                 type="button"
@@ -783,6 +856,182 @@ export default function AnalysisPage() {
                     </table>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB REPORT: DETAIL REPORT MS TOWER V6 (RPT~) & EXPORT EXCEL */}
+            {activeTab === "report" && (
+              <div style={{ padding: 20 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 14,
+                  }}
+                >
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+                      Detail Report Perhitungan — Format MS Tower V6 ({site})
+                    </h2>
+                    <span className="sheet-head-sub">
+                      {mstReport.data ? (
+                        <>
+                          Job: <strong>{mstReport.data.header.job || site}</strong> ·{" "}
+                          {mstReport.data.header.title.join(" / ")} ·{" "}
+                          {mstReport.data.member_rows_count} Baris Member ·{" "}
+                          {mstReport.data.reaction_cases_count} Kasus Reaksi · Massa Baja{" "}
+                          {mstReport.data.mass_total_kg.toFixed(2)} kg · Skala Angin s ={" "}
+                          {mstReport.data.scale.toFixed(4)}
+                        </>
+                      ) : (
+                        "Memuat detail report dari blok RPT~ MS Tower V6…"
+                      )}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="secondary sm"
+                      onClick={() => {
+                        if (mstReport.data?.report_text) {
+                          navigator.clipboard.writeText(mstReport.data.report_text);
+                          toast("Teks report MS Tower disalin ke clipboard");
+                        }
+                      }}
+                    >
+                      Salin Report
+                    </button>
+                    <a
+                      href={api.exportRptUrl(site)}
+                      download
+                      className="btn-link secondary sm"
+                    >
+                      Download .rpt (MS Tower)
+                    </a>
+                    <a
+                      href={api.exportExcelUrl(site)}
+                      download
+                      className="btn-link tinted sm"
+                    >
+                      Download Excel (.xlsx)
+                    </a>
+                  </div>
+                </div>
+
+                {/* Section Navigation & Search Bar */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 12,
+                  }}
+                >
+                  <div className="segmented" role="group" aria-label="Bagian Report MS Tower">
+                    <button
+                      type="button"
+                      className={reportSection === "ALL" ? "active" : ""}
+                      onClick={() => setReportSection("ALL")}
+                    >
+                      Semua Bagian
+                    </button>
+                    <button
+                      type="button"
+                      className={reportSection === "MEMBER_CHECK" ? "active" : ""}
+                      onClick={() => setReportSection("MEMBER_CHECK")}
+                    >
+                      1. Member Checking
+                    </button>
+                    <button
+                      type="button"
+                      className={reportSection === "REACTIONS" ? "active" : ""}
+                      onClick={() => setReportSection("REACTIONS")}
+                    >
+                      2. Support Reactions
+                    </button>
+                    <button
+                      type="button"
+                      className={reportSection === "ROTATIONS" ? "active" : ""}
+                      onClick={() => setReportSection("ROTATIONS")}
+                    >
+                      3. Twist, Sway &amp; Ancillary
+                    </button>
+                    <button
+                      type="button"
+                      className={reportSection === "DISPLACEMENTS" ? "active" : ""}
+                      onClick={() => setReportSection("DISPLACEMENTS")}
+                    >
+                      4. Displacements
+                    </button>
+                    <button
+                      type="button"
+                      className={reportSection === "SUMMARY" ? "active" : ""}
+                      onClick={() => setReportSection("SUMMARY")}
+                    >
+                      5. Ringkasan Hitungan
+                    </button>
+                  </div>
+
+                  <input
+                    type="search"
+                    placeholder="Filter baris (mis. Panel 22, EA40X40X4, 2152, *#)…"
+                    value={reportSearch}
+                    onChange={(e) => setReportSearch(e.target.value)}
+                    style={{ width: 280 }}
+                  />
+                </div>
+
+                {/* Monospace MS Tower V6 Report Output Viewer */}
+                {mstReport.isLoading ? (
+                  <div style={{ padding: 24, color: "var(--muted)" }}>
+                    Membuat detail report perhitungan MS Tower V6…
+                  </div>
+                ) : mstReport.data ? (
+                  <div className="rpt-viewer-box">
+                    <pre className="rpt-pre">
+                      {sliceReportSection(mstReport.data.report_text, reportSection)
+                        .split(/\r?\n/)
+                        .filter((ln) =>
+                          reportSearch.trim()
+                            ? ln.toLowerCase().includes(reportSearch.trim().toLowerCase())
+                            : true,
+                        )
+                        .map((ln, idx) => {
+                          const isOverstress = /\s\*#?\s*$/.test(ln);
+                          const isHeading =
+                            ln.startsWith("TOWER STUDIO") ||
+                            ln.startsWith("Tower Studio") ||
+                            ln.startsWith("-- ") ||
+                            ln.startsWith(" SUPPORT REACTIONS") ||
+                            ln.startsWith(" ENVELOPE OF TOWER ROTATIONS") ||
+                            ln.startsWith(" ROTATIONS OF ANCILLARY") ||
+                            ln.startsWith(" Mass Summary") ||
+                            ln.startsWith(" Pnl  Members");
+                          return (
+                            <div
+                              key={idx}
+                              className={`rpt-line ${
+                                isOverstress ? "overstress" : isHeading ? "heading" : ""
+                              }`}
+                            >
+                              <span className="rpt-ln">{idx + 1}</span>
+                              <span className="rpt-txt">{ln || " "}</span>
+                            </div>
+                          );
+                        })}
+                    </pre>
+                  </div>
+                ) : (
+                  <div style={{ padding: 24, color: "var(--muted)" }}>
+                    Report belum tersedia.
+                  </div>
+                )}
               </div>
             )}
 

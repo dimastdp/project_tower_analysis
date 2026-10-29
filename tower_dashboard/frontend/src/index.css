@@ -1189,4 +1189,105 @@ tbody tr.selected {
   margin-left: 3px;
 }
 
+/* ==========================================================================
+   BUTTON LINKS & MS TOWER V6 REPORT TERMINAL VIEWER
+   ========================================================================== */
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-link.sm {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+
+.btn-link.secondary {
+  background: rgba(118, 118, 128, 0.12);
+  color: var(--ink);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.btn-link.secondary:hover {
+  background: rgba(118, 118, 128, 0.20);
+  color: var(--ink);
+}
+
+.btn-link.tinted {
+  background: rgba(0, 113, 227, 0.10);
+  color: #0071E3;
+  border: 1px solid rgba(0, 113, 227, 0.24);
+}
+
+.btn-link.tinted:hover {
+  background: rgba(0, 113, 227, 0.18);
+  color: #0071E3;
+}
+
+.rpt-viewer-box {
+  background: #18181B;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  max-height: 580px;
+  overflow: auto;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.rpt-pre {
+  margin: 0;
+  padding: 12px 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #F4F4F5;
+  background: transparent;
+}
+
+.rpt-line {
+  display: flex;
+  padding: 1px 14px;
+  white-space: pre;
+}
+
+.rpt-line:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.rpt-line.heading {
+  color: #60A5FA;
+  font-weight: 600;
+  background: rgba(96, 165, 250, 0.10);
+}
+
+.rpt-line.overstress {
+  color: #FCA5A5;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.rpt-ln {
+  user-select: none;
+  width: 46px;
+  flex-shrink: 0;
+  text-align: right;
+  margin-right: 16px;
+  color: #71717A;
+}
+
+.rpt-txt {
+  flex-grow: 1;
+}
+
+
 

@@ -113,7 +113,7 @@ export default function App() {
           <div className="cmd-brand">
             <span className="cmd-brand-mark">TS</span>
             <span>Tower Studio</span>
-            <span className="cmd-brand-sub">MS Tower V6 &amp; TIA-222-G · v2.0.0</span>
+            <span className="cmd-brand-sub">MS Tower V6 &amp; TIA-222-G · v2.1.0</span>
           </div>
 
           <nav className="cmd-nav" aria-label="Menu Utama">

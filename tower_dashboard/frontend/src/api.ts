@@ -5,6 +5,7 @@ import type {
   Geometry,
   LibraryDevice,
   LibraryDeviceInput,
+  MsTowerReportResult,
   PreflightResult,
   SiteDevice,
   SiteDeviceInput,
@@ -96,4 +97,8 @@ export const api = {
       if (e.status === 404 && e.message.startsWith("No analysis")) return null;
       throw e;
     }),
+  analysisReport: (site: string) =>
+    request<MsTowerReportResult>(`/sites/${enc(site)}/analysis/report`),
+  exportExcelUrl: (site: string) => `/api/sites/${enc(site)}/analysis/export/excel`,
+  exportRptUrl: (site: string) => `/api/sites/${enc(site)}/analysis/export/rpt`,
 };

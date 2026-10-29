@@ -22,11 +22,13 @@ from parsers import (
     parse_ancillary_lib,
     parse_mst_content,
     parse_mst_embedded_results,
+    parse_mst_report,
     parse_mst_twr_block,
     suggest_similar_devices,
     summarize_geometry,
     upsert_device_in_lib_file,
 )
+from report_export import build_calc_workbook, build_report_dataset, render_mstower_report
 
 MAX_MST_BYTES = 50 * 1024 * 1024
 MAX_LIB_BYTES = 5 * 1024 * 1024
@@ -135,7 +137,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 app = FastAPI(title="Tower Dashboard API", version=__version__, lifespan=lifespan)
 app.add_middleware(
@@ -743,6 +745,74 @@ def latest_analysis(site: str):
         if row is None:
             raise HTTPException(404, "No analysis has been run for this site.")
         return _load_run(c, row, site, tower_row=t_row)
+
+
+def _build_site_report_dataset(c, site: str) -> dict:
+    t_row = _tower_row(c, site)
+    tid = t_row["tower_id"]
+    row = c.execute(
+        "SELECT * FROM analysis_runs WHERE tower_id = ? ORDER BY run_id DESC LIMIT 1", (tid,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(404, "No analysis has been run for this site.")
+    run = _load_run(c, row, site, tower_row=t_row)
+    mst_rep = parse_mst_report(t_row["raw_mst_data"] or b"")
+    return build_report_dataset(mst_rep, run, _tower_public(t_row), __version__)
+
+
+@app.get("/api/sites/{site}/analysis/report")
+def get_analysis_report(site: str):
+    """Return the full MS Tower V6 formatted calculation report text + section metadata."""
+    with connect() as c:
+        ds = _build_site_report_dataset(c, site)
+    return {
+        "site_name": site,
+        "run_id": ds["run"]["run_id"],
+        "created_at": ds["run"]["created_at"],
+        "wind_speed_ms": ds["run"]["wind_speed_ms"],
+        "scale": round(ds["scale"], 4),
+        "has_rpt": ds["has_rpt"],
+        "header": ds["header"],
+        "member_rows_count": len(ds["members"]),
+        "reaction_cases_count": len(ds["reactions"]),
+        "rotation_points_count": len(ds["rot_env_3node"]),
+        "ancillary_count": len(ds["ancillary_rot"]),
+        "displacement_cases_count": len(ds["displacements"]),
+        "mass_total_kg": ds["mass_total_kg"],
+        "report_text": render_mstower_report(ds),
+    }
+
+
+@app.get("/api/sites/{site}/analysis/export/rpt")
+def export_analysis_rpt(site: str):
+    """Download the detailed calculation report in MS Tower V6 .rpt format."""
+    with connect() as c:
+        ds = _build_site_report_dataset(c, site)
+    safe_name = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in site)
+    body = render_mstower_report(ds).encode("utf-8")
+    return Response(
+        content=body,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_MSTOWER_REPORT.rpt"'
+        },
+    )
+
+
+@app.get("/api/sites/{site}/analysis/export/excel")
+def export_analysis_excel(site: str):
+    """Download the multi-sheet Excel (.xlsx) calculation workbook in MS Tower V6 format."""
+    with connect() as c:
+        ds = _build_site_report_dataset(c, site)
+    safe_name = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in site)
+    xlsx_bytes = build_calc_workbook(ds)
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}_DETAIL_HITUNGAN_MSTOWER.xlsx"'
+        },
+    )
 
 
 # ---------- production: serve the built SPA (TRD 2.11) -------------------------
