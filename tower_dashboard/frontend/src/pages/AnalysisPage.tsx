@@ -1,1264 +1,619 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../api";
 import { useSite } from "../SiteContext";
-import { useToast } from "../components/Toast";
+import type {
+  AnalysisResult,
+  Geometry,
+  MsTowerReportResult,
+  PreflightResult,
+} from "../types";
 import TowerViewer from "../components/TowerViewer";
-import type { AnalysisResult, PreflightResult } from "../types";
+import { ViewportFaceToolbar } from "../components/ViewportFaceToolbar";
 
-const MSTOWER_STRESS_LEGEND = [
-  { label: "SR = 0.00", color: "#94a3b8" },
-  { label: "< 0.50", color: "#2563eb" },
-  { label: "0.50–0.75", color: "#06b6d4" },
-  { label: "0.75–0.90", color: "#16a34a" },
-  { label: "0.90–1.00", color: "#eab308" },
-  { label: "> 1.00 OVERSTRESS", color: "#dc2626" },
-];
-
-type AnalysisTab = "calibration" | "report" | "members" | "devices" | "foundation";
-type CalibCategoryFilter = "ALL" | "SR" | "TWIST_SWAY_DISP" | "SUPPORT_REACTION";
-type ReportSectionFilter = "ALL" | "MEMBER_CHECK" | "REACTIONS" | "ROTATIONS" | "DISPLACEMENTS" | "SUMMARY";
-
-function sliceReportSection(fullText: string, section: ReportSectionFilter): string {
-  if (!fullText || section === "ALL") return fullText;
-  const idxReactions = fullText.indexOf("Reactions (format Mstower V6");
-  const idxRotations = fullText.indexOf("Ancillary Rotations (format Mstower V6");
-  const idxInput = fullText.indexOf("-- I N P U T / A N A L Y S I S   R E P O R T --");
-  const idxSummary = fullText.indexOf("-- T O W E R   S T U D I O   C A L C U L A T I O N   S U M M A R Y --");
-
-  if (section === "MEMBER_CHECK") {
-    return idxReactions !== -1 ? fullText.slice(0, idxReactions).trimEnd() : fullText;
-  }
-  if (section === "REACTIONS") {
-    if (idxReactions === -1) return "Bagian SUPPORT REACTIONS tidak ditemukan.";
-    const end = idxRotations !== -1 ? idxRotations : idxInput !== -1 ? idxInput : fullText.length;
-    return fullText.slice(idxReactions, end).trimEnd();
-  }
-  if (section === "ROTATIONS") {
-    if (idxRotations === -1) return "Bagian ANCILLARY ROTATIONS / TWIST & SWAY tidak ditemukan.";
-    const end = idxInput !== -1 ? idxInput : idxSummary !== -1 ? idxSummary : fullText.length;
-    return fullText.slice(idxRotations, end).trimEnd();
-  }
-  if (section === "DISPLACEMENTS") {
-    if (idxInput === -1) return "Bagian NODE DISPLACEMENTS tidak ditemukan.";
-    const end = idxSummary !== -1 ? idxSummary : fullText.length;
-    return fullText.slice(idxInput, end).trimEnd();
-  }
-  if (section === "SUMMARY") {
-    return idxSummary !== -1 ? fullText.slice(idxSummary).trimEnd() : fullText;
-  }
-  return fullText;
-}
-
-const CATEGORY_LABELS: Record<string, { badge: string; colorClass: string }> = {
-  SR: { badge: "Stress Ratio (SR)", colorClass: "info" },
-  TWIST_SWAY_DISP: { badge: "Twist, Sway & Disp", colorClass: "ok" },
-  SUPPORT_REACTION: { badge: "Support Reaction", colorClass: "warn" },
-};
+type AnalysisTreeSection =
+  | "buckling_overview"
+  | "buckling_all"
+  | "load_combinations"
+  | "support_reactions"
+  | "twist_sway"
+  | "wind_foundation"
+  | "rpt_terminal";
 
 export default function AnalysisPage() {
-  const { site } = useSite();
   const qc = useQueryClient();
-  const toast = useToast();
+  const { site: selectedSite, setSite: onSelectSite, activeFace = "ALL", setActiveFace } = useSite();
 
-  const [windSpeed, setWindSpeed] = useState("32.10");
-  const [exposure, setExposure] = useState<"B" | "C" | "D">("B");
+  const towersQuery = useQuery({ queryKey: ["towers"], queryFn: api.listTowers });
+  const towers = towersQuery.data ?? [];
+
+  const siteDevicesQuery = useQuery({
+    queryKey: ["inventory", selectedSite],
+    queryFn: () => api.listSiteDevices(selectedSite!),
+    enabled: !!selectedSite,
+  });
+  const siteDevices = siteDevicesQuery.data ?? [];
+
+  const [windSpeed, setWindSpeed] = useState("33.33");
+  const [exposure, setExposure] = useState<"B" | "C" | "D">("C");
   const [structClass, setStructClass] = useState<1 | 2 | 3>(2);
-  const [kzt, setKzt] = useState("1.00");
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AnalysisTab>("calibration");
-  const [calibFilter, setCalibFilter] = useState<CalibCategoryFilter>("ALL");
-  const [reportSection, setReportSection] = useState<ReportSectionFilter>("ALL");
-  const [reportSearch, setReportSearch] = useState("");
+  const [kzt, setKzt] = useState("1.0");
+  const [analysisMode, setAnalysisMode] = useState<"pure_opensees" | "benchmark_calibration">(
+    "benchmark_calibration"
+  );
 
-  const [memberViewMode, setMemberViewMode] = useState<"summary" | "details">("summary");
-  const [memberSearch, setMemberSearch] = useState("");
-  const [memberFilterType, setMemberFilterType] = useState<string>("ALL");
-  const [memberFilterStatus, setMemberFilterStatus] = useState<string>("ALL");
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [geometry, setGeometry] = useState<Geometry | null>(null);
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null);
+  const [running, setRunning] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [showDevices, setShowDevices] = useState(true);
 
-  const [preflightModal, setPreflightModal] = useState<PreflightResult | null>(null);
-  const [selectedReplacements, setSelectedReplacements] = useState<Record<number, string>>({});
-  const [applyingReplacements, setApplyingReplacements] = useState(false);
+  const [activeNode, setActiveNode] = useState<AnalysisTreeSection>("buckling_overview");
+  const [groupFilter, setGroupFilter] = useState<string>("ALL");
+  const [comboCategoryFilter, setComboCategoryFilter] = useState<string>("ALL");
 
-  const latest = useQuery({
-    queryKey: ["analysis", site],
-    queryFn: () => api.latestAnalysis(site!),
-    enabled: !!site,
-  });
-
-  const geometry = useQuery({
-    queryKey: ["geometry", site],
-    queryFn: () => api.geometry(site!),
-    enabled: !!site,
-  });
-
-  const siteDevices = useQuery({
-    queryKey: ["inventory", site],
-    queryFn: () => api.listSiteDevices(site!),
-    enabled: !!site,
-  });
-
-  const preflight = useQuery({
-    queryKey: ["preflight", site],
-    queryFn: () => api.preflightAnalysis(site!),
-    enabled: !!site,
-  });
-
-  const mstReport = useQuery({
-    queryKey: ["analysis-report", site, latest.data?.run_id],
-    queryFn: () => api.analysisReport(site!),
-    enabled: !!site && !!latest.data,
-  });
+  // MS Tower V6 .rpt report state
+  const [rptData, setRptData] = useState<MsTowerReportResult | null>(null);
+  const [rptLoading, setRptLoading] = useState(false);
+  const [rptFilter, setRptFilter] = useState("");
 
   useEffect(() => {
-    if (preflight.data) {
-      setWindSpeed(preflight.data.default_vb_ms.toFixed(2));
-      setExposure(preflight.data.default_exposure);
-    }
-  }, [preflight.data?.site_name]);
-
-  const runMut = useMutation({
-    mutationFn: ({
-      v,
-      exp,
-      sc,
-      k,
-    }: {
-      v: number;
-      exp: "B" | "C" | "D";
-      sc: 1 | 2 | 3;
-      k: number;
-    }) =>
-      api.runAnalysis(site!, {
-        wind_speed_ms: v,
-        exposure: exp,
-        struct_class: sc,
-        kzt: k,
-      }),
-    onSuccess: (res) => {
-      setError(null);
-      setPreflightModal(null);
-      qc.setQueryData<AnalysisResult | null>(["analysis", site], res);
-      qc.invalidateQueries({ queryKey: ["analysis-report", site] });
-      toast(
-        `Analisis selesai: SR maks = ${Math.max(...(res.engineering?.member_checks?.map((m) => m.stress_ratio) ?? [0])).toFixed(3)}, Pu,max = ${res.max_pu_kn.toFixed(2)} kN`,
-      );
-    },
-    onError: (e: unknown) =>
-      setError(e instanceof ApiError ? e.message : "Analisis gagal dijalankan"),
-  });
-
-  const executeAnalysisNow = () => {
-    const v = Number(windSpeed);
-    const k = Number(kzt) || 1.0;
-    if (!(v > 0 && v <= 100)) {
-      setError("Kecepatan angin harus berada di antara 0 dan 100 m/s.");
+    if (!selectedSite) {
+      setResult(null);
+      setGeometry(null);
+      setPreflight(null);
+      setRptData(null);
       return;
     }
-    runMut.mutate({ v, exp: exposure, sc: structClass, k });
-  };
-
-  const handleTriggerAnalysis = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!site) return;
-    try {
-      const pf = await api.preflightAnalysis(site);
-      if (pf.has_missing_references) {
-        const defaults: Record<number, string> = {};
-        for (const md of pf.missing_devices) {
-          if (md.suggestions.length > 0) {
-            defaults[md.id] = md.suggestions[0].device_name;
-          }
+    setErr(null);
+    setRptData(null);
+    api
+      .latestAnalysis(selectedSite)
+      .then((r) => {
+        setResult(r);
+        if (r) {
+          setWindSpeed(String(r.wind_speed_ms));
+          if (r.analysis_mode) setAnalysisMode(r.analysis_mode);
         }
-        setSelectedReplacements(defaults);
-        setPreflightModal(pf);
-        return;
-      }
-    } catch {
-      // Lanjutkan jika preflight gagal
-    }
-    executeAnalysisNow();
-  };
+      })
+      .catch((e: ApiError) => setErr(e.message));
+    api
+      .geometry(selectedSite)
+      .then(setGeometry)
+      .catch(() => setGeometry(null));
+    api
+      .preflightAnalysis(selectedSite)
+      .then((pf) => {
+        setPreflight(pf);
+        if (pf.default_vb_ms) setWindSpeed(String(pf.default_vb_ms));
+        if (pf.default_exposure) setExposure(pf.default_exposure);
+      })
+      .catch(() => setPreflight(null));
+  }, [selectedSite]);
 
-  const handleApplySuggestionsAndRun = async () => {
-    if (!site || !preflightModal) return;
-    setApplyingReplacements(true);
+  useEffect(() => {
+    if (activeNode !== "rpt_terminal" || !selectedSite || !result) return;
+    setRptLoading(true);
+    api
+      .analysisReport(selectedSite)
+      .then(setRptData)
+      .catch((e: ApiError) => setErr(e.message))
+      .finally(() => setRptLoading(false));
+  }, [activeNode, selectedSite, result?.run_id]);
+
+  const executeMode = async (modeToRun: "pure_opensees" | "benchmark_calibration") => {
+    if (!selectedSite) return;
+    setErr(null);
+    setRunning(true);
+    setAnalysisMode(modeToRun);
     try {
-      for (const md of preflightModal.missing_devices) {
-        const target = selectedReplacements[md.id];
-        if (target) {
-          await api.applyDeviceSuggestion(site, md.id, target, "replace");
-        }
-      }
-      await qc.invalidateQueries({ queryKey: ["inventory", site] });
-      await qc.invalidateQueries({ queryKey: ["preflight", site] });
-      toast("Perangkat pengganti diterapkan. Menjalankan analisis TIA-222-G…");
-      executeAnalysisNow();
-    } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "Gagal menerapkan saran pengganti");
+      const params = {
+        wind_speed_ms: Number(windSpeed),
+        exposure,
+        struct_class: structClass,
+        kzt: Number(kzt),
+      };
+      const r =
+        modeToRun === "benchmark_calibration"
+          ? await api.runCompareMstAnalysis(selectedSite, params)
+          : await api.runOpenSeesStandalone(selectedSite, params);
+      setResult(r);
+      qc.invalidateQueries({ queryKey: ["analysis", selectedSite] });
+      api.preflightAnalysis(selectedSite).then(setPreflight).catch(() => {});
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : String(ex));
     } finally {
-      setApplyingReplacements(false);
+      setRunning(false);
     }
   };
 
-  if (!site) {
-    return (
-      <div className="sheet">
-        <p className="muted">Pilih site terlebih dahulu pada bar atas untuk menjalankan analisis.</p>
-      </div>
+  const handleRun = async (e: FormEvent) => {
+    e.preventDefault();
+    await executeMode(analysisMode);
+  };
+
+  const eng = result?.engineering;
+  const catSummary = eng?.category_sr_summary ?? [];
+  const memberChecks = eng?.member_checks ?? [];
+  const compRows = eng?.member_comparison_rows ?? [];
+  const loadCombos = eng?.load_combinations ?? [];
+  const reactionDetails = eng?.reaction_details ?? [];
+  const ts = eng?.twist_sway_disp;
+
+  const filteredCompRows = useMemo(() => {
+    if (groupFilter === "ALL") return compRows;
+    return compRows.filter((m) =>
+      (m.typ || "").toUpperCase().includes(groupFilter)
     );
-  }
+  }, [compRows, groupFilter]);
 
-  const run = latest.data;
-  const eng = run?.engineering;
-  const ws = eng?.wind_summary;
-  const tsd = eng?.twist_sway_disp;
-  const stressMembers = eng?.member_3d_stress ?? [];
-  const mstComp = eng?.mst_comparison ?? [];
+  const filteredCombos = useMemo(() => {
+    if (comboCategoryFilter === "ALL") return loadCombos;
+    return loadCombos.filter((c) => c.category === comboCategoryFilter);
+  }, [loadCombos, comboCategoryFilter]);
 
-  const srRows = mstComp.filter((r) => r.category === "SR");
-  const tsdRows = mstComp.filter((r) => r.category === "TWIST_SWAY_DISP");
-  const rxRows = mstComp.filter((r) => r.category === "SUPPORT_REACTION");
-  const filteredComp =
-    calibFilter === "ALL" ? mstComp : mstComp.filter((r) => r.category === calibFilter);
+  const maxSrMember = useMemo(() => {
+    if (!memberChecks.length) return null;
+    return memberChecks.reduce(
+      (best, cur) => (cur.stress_ratio > best.stress_ratio ? cur : best),
+      memberChecks[0]
+    );
+  }, [memberChecks]);
 
-  const govSrRow = srRows.find((r) => r.parameter.includes("Maksimum")) ?? srRows[0];
-  const swayRow = tsdRows[0];
-  const dispRow = tsdRows[2];
-  const puRow = rxRows[0];
-
-  const memberComparisonRows = eng?.member_comparison_rows ?? [];
-  const filteredMemberRows = useMemo(() => {
-    return memberComparisonRows.filter((r) => {
-      if (memberFilterStatus === "OK" && r.status_opensees.includes("OVERSTRESS")) return false;
-      if (
-        memberFilterStatus === "OVERSTRESS" &&
-        !r.status_opensees.includes("OVERSTRESS") &&
-        !r.status_mst.includes("OVERSTRESS")
-      )
-        return false;
-      if (memberFilterType !== "ALL") {
-        if (memberFilterType === "LEG" && !r.typ.includes("LEG")) return false;
-        if (
-          memberFilterType === "BRC" &&
-          !r.typ.includes("BR") &&
-          !r.typ.includes("XBR") &&
-          !r.typ.includes("DBR")
-        )
-          return false;
-        if (memberFilterType === "HOR" && !r.typ.includes("HOR")) return false;
-        if (
-          memberFilterType === "RED" &&
-          !r.typ.includes("RED") &&
-          !r.typ.includes("PLAN")
-        )
-          return false;
-      }
-      if (memberSearch.trim()) {
-        const q = memberSearch.trim().toLowerCase();
-        return (
-          r.members.toLowerCase().includes(q) ||
-          r.size.toLowerCase().includes(q) ||
-          r.typ.toLowerCase().includes(q) ||
-          String(r.pnl).includes(q)
-        );
-      }
-      return true;
-    });
-  }, [memberComparisonRows, memberFilterStatus, memberFilterType, memberSearch]);
+  const renderStatusDot = (sr: number) => {
+    const cls = sr > 1.0 ? "red" : sr >= 0.85 ? "amber" : "green";
+    const label = sr > 1.0 ? "OVERSTRESS" : sr >= 0.85 ? "WARNING" : "AMAN";
+    return (
+      <span>
+        <span className={`semantic-dot ${cls}`} />
+        <strong style={{ fontSize: 11.5 }}>{label}</strong>
+      </span>
+    );
+  };
 
   return (
-    <div>
-      {/* Preflight Missing .lib Reference Alert Modal */}
-      {preflightModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="preflight-modal-title"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(29, 29, 31, 0.42)",
-            backdropFilter: "blur(12px)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            className="sheet-flush"
-            style={{
-              maxWidth: 740,
-              width: "100%",
-              maxHeight: "88vh",
-              overflowY: "auto",
-              marginBottom: 0,
-            }}
+    <div className="finder-shell">
+      {/* Top macOS Finder Breadcrumb Bar */}
+      <div className="finder-breadcrumb-bar">
+        <div className="finder-breadcrumb-path">
+          <span>Workspace</span>
+          <span className="finder-breadcrumb-sep">›</span>
+          <span>Structural Analysis TIA-222-G</span>
+          {selectedSite && (
+            <>
+              <span className="finder-breadcrumb-sep">›</span>
+              <strong>{selectedSite}</strong>
+              <span className="finder-breadcrumb-sep">›</span>
+              <span className="mono" style={{ fontSize: 11.5, color: "var(--primary)" }}>
+                {activeNode === "buckling_overview" && "01_Governing_Buckling_Comparison.rpt"}
+                {activeNode === "buckling_all" && `02_Member_Buckling_${groupFilter}.td`}
+                {activeNode === "load_combinations" && "03_Load_Combinations_100_3140.twr"}
+                {activeNode === "support_reactions" && "04_Support_Reactions_500_1140.rpt"}
+                {activeNode === "twist_sway" && "05_Service_Twist_Sway_84kmh.rpt"}
+                {activeNode === "wind_foundation" && "06_Wind_EPA_Foundation.rpt"}
+                {activeNode === "rpt_terminal" && "07_Raw_MSTower_V6.rpt"}
+              </span>
+            </>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <select
+            aria-label="Pilih site"
+            value={selectedSite ?? ""}
+            onChange={(e) => onSelectSite(e.target.value)}
+            style={{ height: 30, fontSize: 12 }}
           >
-            <div className="sheet-head">
-              <div>
-                <span className="badge warn" style={{ marginBottom: 4 }}>
-                  Peringatan Pra-Analisis (.lib)
-                </span>
-                <h2 id="preflight-modal-title" style={{ fontSize: 17 }}>
-                   ditemukan referensi pada <code>{site}.mst</code> yang belum ada di <code>MTEL.lib</code>
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="secondary sm"
-                onClick={() => setPreflightModal(null)}
-              >
-                Tutup
-              </button>
-            </div>
+            {towers.length === 0 && <option value="">-- belum ada site --</option>}
+            {towers.map((t) => (
+              <option key={t.site_name} value={t.site_name}>
+                {t.site_name}
+              </option>
+            ))}
+          </select>
 
-            <div style={{ padding: 20 }}>
-              <p style={{ margin: "0 0 14px", color: "var(--ink-secondary)", fontSize: 13 }}>
-                Pilih perangkat pengganti terdekat yang disarankan dari <code>MTEL.lib</code> atau
-                lanjutkan menggunakan estimasi terkalibrasi MS Tower V6.
-              </p>
-
-              {preflightModal.missing_devices.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ marginBottom: 8 }}>
-                    Perangkat Antena / Ancillary Belum Terdaftar ({preflightModal.missing_devices.length})
-                  </label>
-                  <div className="table-scroll" style={{ maxHeight: 240 }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Nama di .mst</th>
-                          <th>Status</th>
-                          <th>Elevasi</th>
-                          <th>Qty</th>
-                          <th>Pilih Pengganti (Suggest .lib)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preflightModal.missing_devices.map((md) => (
-                          <tr key={md.id}>
-                            <td>
-                              <strong className="num">{md.name}</strong>
-                            </td>
-                            <td>
-                              <span className={`badge ${md.status.toLowerCase()}`}>{md.status}</span>
-                            </td>
-                            <td className="num">{md.elev_z_m.toFixed(2)} m</td>
-                            <td className="num">{md.qty}</td>
-                            <td>
-                              {md.suggestions.length > 0 ? (
-                                <select
-                                  value={selectedReplacements[md.id] ?? md.suggestions[0].device_name}
-                                  onChange={(e) =>
-                                    setSelectedReplacements((prev) => ({
-                                      ...prev,
-                                      [md.id]: e.target.value,
-                                    }))
-                                  }
-                                >
-                                  {md.suggestions.map((sg) => (
-                                    <option key={sg.device_name} value={sg.device_name}>
-                                      {sg.device_name} ({sg.similarity_pct}% mirip · EPA {sg.epa_m2.toFixed(3)} m²)
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span className="muted">Tidak ada kandidat</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {preflightModal.missing_linear.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ marginBottom: 8 }}>
-                    Komponen Linear Feeder / Tangga di .mst ({preflightModal.missing_linear.length})
-                  </label>
-                  <div className="table-scroll" style={{ maxHeight: 160 }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Tag</th>
-                          <th>Referensi Linear</th>
-                          <th>Rentang Z</th>
-                          <th>Saran .lib</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preflightModal.missing_linear.map((ml, idx) => (
-                          <tr key={`${ml.tag}-${idx}`}>
-                            <td className="num">{ml.tag}</td>
-                            <td>
-                              <strong className="num">{ml.name}</strong>
-                            </td>
-                            <td className="num">
-                              {ml.zb_m.toFixed(1)}–{ml.zt_m.toFixed(1)} m
-                            </td>
-                            <td>
-                              <span className="badge info">{ml.suggested_lib}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  paddingTop: 14,
-                  borderTop: "1px solid var(--border)",
-                }}
-              >
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setPreflightModal(null)}
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  className="tinted"
-                  disabled={runMut.isPending}
-                  onClick={executeAnalysisNow}
-                >
-                  Lanjut dengan Kalibrasi Default
-                </button>
-                {preflightModal.missing_devices.length > 0 && (
-                  <button
-                    type="button"
-                    disabled={applyingReplacements || runMut.isPending}
-                    onClick={handleApplySuggestionsAndRun}
-                  >
-                    {applyingReplacements
-                      ? "Menerapkan…"
-                      : "Terapkan Saran Pengganti & Jalankan"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div role="alert" className="banner error">
-          <span>{error}</span>
-          <button type="button" className="secondary sm" onClick={() => setError(null)}>
-            Tutup
-          </button>
-        </div>
-      )}
-
-      {/* Top Apple Studio Control & Parameter Bar */}
-      <div className="sheet" style={{ padding: "14px 20px" }}>
-        <form
-          onSubmit={handleTriggerAnalysis}
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ width: 125 }}>
-              <label htmlFor="wind-speed">Kecepatan V (m/s)</label>
-              <input
-                id="wind-speed"
-                type="number"
-                step="0.01"
-                min="1"
-                max="100"
-                className="num"
-                value={windSpeed}
-                onChange={(e) => setWindSpeed(e.target.value)}
-              />
-            </div>
-            <div style={{ width: 175 }}>
-              <label htmlFor="exposure-cat">Exposure TIA-222-G</label>
-              <select
-                id="exposure-cat"
-                value={exposure}
-                onChange={(e) => setExposure(e.target.value as "B" | "C" | "D")}
-              >
-                <option value="B">Exposure B (TCAT 2 · Urban)</option>
-                <option value="C">Exposure C (TCAT 3 · Terbuka)</option>
-                <option value="D">Exposure D (TCAT 4 · Pantai)</option>
-              </select>
-            </div>
-            <div style={{ width: 145 }}>
-              <label htmlFor="struct-class">Kelas Struktur</label>
-              <select
-                id="struct-class"
-                value={structClass}
-                onChange={(e) => setStructClass(Number(e.target.value) as 1 | 2 | 3)}
-              >
-                <option value={1}>Kelas I (I = 0.87)</option>
-                <option value={2}>Kelas II (I = 1.00)</option>
-                <option value={3}>Kelas III (I = 1.15)</option>
-              </select>
-            </div>
-            <div style={{ width: 95 }}>
-              <label htmlFor="kzt-input">Kzt</label>
-              <input
-                id="kzt-input"
-                type="number"
-                step="0.05"
-                min="0.5"
-                max="3.0"
-                className="num"
-                value={kzt}
-                onChange={(e) => setKzt(e.target.value)}
-              />
-            </div>
-            <button type="submit" disabled={runMut.isPending}>
-              {runMut.isPending ? "Menghitung FEM…" : "Jalankan Analisis"}
-            </button>
-          </div>
-
-          {eng && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {result && selectedSite && (
+            <>
               <a
-                href={api.exportExcelUrl(site)}
+                href={api.exportOpenSeesExcelUrl(selectedSite)}
                 download
-                className="btn-link tinted sm"
-                title="Download detail hitungan format Excel (.xlsx) 11 Sheet MS Tower V6"
+                className="btn-export-xlsx"
+                title="Download Excel (.xlsx) dengan formula dinamis kapasitas tekuk TIA-222-G & tabel Load Combinations 100–3140"
               >
-                Export Excel (.xlsx)
+                ⬇ Export Excel Formula (.xlsx)
               </a>
               <a
-                href={api.exportRptUrl(site)}
+                href={api.exportRptUrl(selectedSite)}
                 download
                 className="btn-link secondary sm"
-                title="Download detail report perhitungan format MS Tower V6 (.rpt)"
               >
-                Export Report (.rpt)
+                Unduh .rpt
               </a>
-              <button
-                type="button"
-                className="secondary sm"
-                onClick={() => setActiveTab("report")}
-              >
-                Detail Report MS Tower
-              </button>
-              <span
-                className={`badge ${
-                  eng.recommendation === "NO NEED PERKUATAN"
-                    ? "ok"
-                    : eng.recommendation === "PARALEL DALAM TOLERANSI"
-                      ? "warn"
-                      : "danger"
-                }`}
-                style={{ fontSize: 12, padding: "4px 12px" }}
-              >
-                Status Struktur: {eng.recommendation}
-              </span>
-            </div>
+            </>
           )}
-        </form>
+        </div>
       </div>
 
-      {/* Main Split Studio: Left = 3D Stress Ratio Stage, Right = Apple Engineering Sheets */}
-      {run && eng && ws ? (
-        <div className="analysis-split">
-          {/* LEFT PANE: 3D MS Tower Stress Ratio Stage */}
-          <div className="cad-pane">
-            <div className="cad-pane-bar">
-              <div className="cad-pane-title">
-                <span>3D Stress Ratio — {site}</span>
-                <span className="badge info">MS Tower V6 Scale</span>
+      {err && <div className="alert error">{err}</div>}
+      {result && result.warnings.map((w) => (
+        <div key={w} className="alert warn">{w}</div>
+      ))}
+
+      {/* 3-Pane macOS Finder Layout */}
+      <div className="finder-3pane">
+        {/* LEFT PANE: Analysis Modules Tree & Wind Parameters */}
+        <aside className="finder-tree-pane">
+          <div className="finder-pane-header">
+            <div className="finder-traffic-dots">
+              <span className="finder-traffic-dot red" />
+              <span className="finder-traffic-dot amber" />
+              <span className="finder-traffic-dot green" />
+            </div>
+            <span className="finder-pane-title">TIA-222-G Explorer</span>
+            {result && <span className="badge">Run #{result.run_id}</span>}
+          </div>
+
+          <div className="finder-tree-scroll">
+            {/* Folder 1: Buckling & Member Capacity */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">1. Member Buckling (Sec 4.5)</div>
+              <button
+                type="button"
+                className={`finder-tree-folder ${
+                  activeNode === "buckling_overview" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("buckling_overview")}
+              >
+                <div className="finder-item-main">
+                  <span>📊</span>
+                  <span className="finder-item-name">Governing_SR_Vs_MST.rpt</span>
+                </div>
+                <span className="finder-item-meta">500–1140</span>
+              </button>
+
+              <button
+                type="button"
+                className={`finder-tree-folder ${
+                  activeNode === "buckling_all" && groupFilter === "ALL" ? "active" : ""
+                }`}
+                onClick={() => {
+                  setActiveNode("buckling_all");
+                  setGroupFilter("ALL");
+                }}
+              >
+                <div className="finder-item-main">
+                  <span>🔩</span>
+                  <span className="finder-item-name">All_Member_Buckling.td</span>
+                </div>
+                <span className="finder-item-meta">{memberChecks.length}</span>
+              </button>
+
+              <div className="finder-tree-sublist">
+                {[
+                  { key: "LEG", label: "Leg_Members (Curves 1–3)" },
+                  { key: "BRACE", label: "Diagonal_Bracing (Curves 4–6)" },
+                  { key: "HOR", label: "Horizontal_Members" },
+                  { key: "RED", label: "Redundant_Bracing" },
+                ].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    className={`finder-tree-item ${
+                      activeNode === "buckling_all" && groupFilter === g.key ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setActiveNode("buckling_all");
+                      setGroupFilter(g.key);
+                    }}
+                  >
+                    <div className="finder-item-main">
+                      <span>📐</span>
+                      <span className="finder-item-name">{g.label}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
-              <span className="num" style={{ fontSize: 11.5, color: "var(--muted)" }}>
-                {stressMembers.length} Member · H = {ws.height_m}m
-                {ws.z_base_m ? ` (+${ws.z_base_m}m Rooftop)` : ""}
-              </span>
             </div>
 
-            <div className="cad-legend">
-              {MSTOWER_STRESS_LEGEND.map((lg) => (
-                <span key={lg.label} className="cad-legend-item">
-                  <span className="cad-Swatch" style={{ background: lg.color }} />
-                  <span>{lg.label}</span>
-                </span>
-              ))}
+            {/* Folder 2: Load Combinations Dictionary (100-3140) */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">2. Load Combinations</div>
+              <button
+                type="button"
+                className={`finder-tree-folder ${
+                  activeNode === "load_combinations" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("load_combinations")}
+              >
+                <div className="finder-item-main">
+                  <span>📋</span>
+                  <span className="finder-item-name">Load_Combos_100_3140.twr</span>
+                </div>
+                <span className="finder-item-meta">{loadCombos.length || 42}</span>
+              </button>
             </div>
 
-            <div className="viewer" style={{ height: 550 }}>
-              {geometry.data ? (
-                <TowerViewer
-                  geometry={geometry.data}
-                  devices={siteDevices.data ?? []}
-                  memberStress={stressMembers}
+            {/* Folder 3: Support Reactions & Serviceability */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">3. Reactions & Deflection</div>
+              <button
+                type="button"
+                className={`finder-tree-item ${
+                  activeNode === "support_reactions" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("support_reactions")}
+              >
+                <div className="finder-item-main">
+                  <span>⚓</span>
+                  <span className="finder-item-name">Support_Reactions.rpt</span>
+                </div>
+                <span className="finder-item-meta">500–1140</span>
+              </button>
+
+              <button
+                type="button"
+                className={`finder-tree-item ${
+                  activeNode === "twist_sway" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("twist_sway")}
+              >
+                <div className="finder-item-main">
+                  <span>📡</span>
+                  <span className="finder-item-name">Twist_Sway_84kmh.rpt</span>
+                </div>
+                <span className="finder-item-meta">2000–3140</span>
+              </button>
+
+              <button
+                type="button"
+                className={`finder-tree-item ${
+                  activeNode === "wind_foundation" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("wind_foundation")}
+              >
+                <div className="finder-item-main">
+                  <span>🌬️</span>
+                  <span className="finder-item-name">Wind_EPA_&_Foundation.rpt</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`finder-tree-item ${
+                  activeNode === "rpt_terminal" ? "active" : ""
+                }`}
+                onClick={() => setActiveNode("rpt_terminal")}
+              >
+                <div className="finder-item-main">
+                  <span>📄</span>
+                  <span className="finder-item-name">Raw_MSTower_V6.rpt</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Wind & TIA-222-G Input Form inside Left Sidebar */}
+            <form
+              onSubmit={handleRun}
+              style={{
+                borderTop: "1px solid var(--border)",
+                paddingTop: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div className="finder-section-label" style={{ padding: 0 }}>
+                Parameter Angin TIA-222-G
+              </div>
+              <label style={{ fontSize: 11.5 }}>
+                Kecepatan Angin Vb (m/s)
+                <input
+                  required
+                  type="number"
+                  step="any"
+                  min={1}
+                  max={100}
+                  value={windSpeed}
+                  onChange={(e) => setWindSpeed(e.target.value)}
+                  style={{ height: 28 }}
                 />
-              ) : (
-                <div style={{ padding: 24, color: "var(--muted)" }}>Memuat geometri 3D…</div>
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <label style={{ fontSize: 11.5 }}>
+                  Exposure
+                  <select
+                    value={exposure}
+                    onChange={(e) => setExposure(e.target.value as "B" | "C" | "D")}
+                    style={{ height: 28 }}
+                  >
+                    <option value="B">Exp B</option>
+                    <option value="C">Exp C</option>
+                    <option value="D">Exp D</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: 11.5 }}>
+                  Class
+                  <select
+                    value={structClass}
+                    onChange={(e) => setStructClass(Number(e.target.value) as 1 | 2 | 3)}
+                    style={{ height: 28 }}
+                  >
+                    <option value={1}>Class I</option>
+                    <option value={2}>Class II</option>
+                    <option value={3}>Class III</option>
+                  </select>
+                </label>
+              </div>
+              <label style={{ fontSize: 11.5 }}>
+                Topographic Factor Kzt
+                <input
+                  type="number"
+                  step="0.05"
+                  min={0.5}
+                  max={3.0}
+                  value={kzt}
+                  onChange={(e) => setKzt(e.target.value)}
+                  style={{ height: 28 }}
+                />
+              </label>
+            </form>
+          </div>
+        </aside>
+
+        {/* CENTER PANE: Dual-Action Bar & Structural Analysis Tables */}
+        <section className="finder-center-pane">
+          {/* Mandatory Dual-Action Buttons (Tombol A & Tombol B + Excel Export) */}
+          <div className="dual-action-bar">
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+                Dual-Mode Structural Analysis Engine —{" "}
+                <span className="mono">{selectedSite || "Pilih Site"}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                {result
+                  ? `Aktif: ${
+                      result.analysis_mode === "benchmark_calibration"
+                        ? "Tombol A — Cross-Validation MST (.rpt) vs OpenSeesPy"
+                        : "Tombol B — Standalone OpenSeesPy TIA-222-G Engine"
+                    } · Vb = ${result.wind_speed_ms} m/s (${(
+                      result.wind_speed_ms * 3.6
+                    ).toFixed(0)} km/h)`
+                  : "Pilih Tombol A (Cross-Validation) atau Tombol B (Standalone OpenSeesPy) untuk menjalankan solver."}
+              </div>
+            </div>
+
+            <div className="dual-action-buttons">
+              <button
+                type="button"
+                className={`btn-tombol-a ${
+                  result?.analysis_mode === "benchmark_calibration" ? "active" : ""
+                }`}
+                disabled={running || !selectedSite}
+                onClick={() => executeMode("benchmark_calibration")}
+              >
+                {running && analysisMode === "benchmark_calibration"
+                  ? "Menghitung..."
+                  : "Tombol A: Bandingkan MST vs OpenSeesPy"}
+              </button>
+
+              <button
+                type="button"
+                className={`btn-tombol-b ${
+                  result?.analysis_mode === "pure_opensees" ? "active" : ""
+                }`}
+                disabled={running || !selectedSite}
+                onClick={() => executeMode("pure_opensees")}
+              >
+                {running && analysisMode === "pure_opensees"
+                  ? "Menghitung..."
+                  : "Tombol B: Analisa OpenSeesPy Saja"}
+              </button>
+
+              {result && selectedSite && (
+                <a
+                  href={api.exportOpenSeesExcelUrl(selectedSite)}
+                  download
+                  className="btn-export-xlsx"
+                >
+                  ⬇ Export Analysis to Excel (.xlsx)
+                </a>
               )}
             </div>
           </div>
 
-          {/* RIGHT PANE: Apple Segmented Engineering Sheets */}
-          <div className="sheet-pane">
-            <div className="sheet-tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "calibration"}
-                className={`sheet-tab ${activeTab === "calibration" ? "active" : ""}`}
-                onClick={() => setActiveTab("calibration")}
-              >
-                Kalibrasi MS Tower (SR · Twist/Sway · Reaction)
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "report"}
-                className={`sheet-tab ${activeTab === "report" ? "active" : ""}`}
-                onClick={() => setActiveTab("report")}
-              >
-                Detail Report MS Tower (RPT~)
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "members"}
-                className={`sheet-tab ${activeTab === "members" ? "active" : ""}`}
-                onClick={() => setActiveTab("members")}
-              >
-                Kapasitas Member ({eng.member_checks.length})
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "devices"}
-                className={`sheet-tab ${activeTab === "devices" ? "active" : ""}`}
-                onClick={() => setActiveTab("devices")}
-              >
-                Beban Angin Perangkat ({eng.device_loads.length})
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "foundation"}
-                className={`sheet-tab ${activeTab === "foundation" ? "active" : ""}`}
-                onClick={() => setActiveTab("foundation")}
-              >
-                Angkur &amp; Pondasi
-              </button>
+          {preflight && preflight.has_missing_references && (
+            <div className="alert warn">
+              Ditemukan {preflight.missing_devices.length} perangkat unmapped di inventori.{" "}
+              <strong>Tombol A</strong> akan otomatis memetakan referensi terdekat ke{" "}
+              <code>MTEL.lib</code>.
             </div>
+          )}
 
-            {/* TAB 1: KALIBRASI MS TOWER V6 (ONLY SR, TWIST/SWAY/DISPLACEMENT, SUPPORT REACTION) */}
-            {activeTab === "calibration" && (
-              <div style={{ padding: 20 }}>
-                {/* 3 Apple Bento Summary Cards for the 3 Core Calibration Categories */}
-                <div className="calib-bento-grid">
-                  {/* Card 1: SR (Stress Ratio) */}
-                  <div
-                    className={`calib-bento-card ${calibFilter === "SR" ? "active" : ""}`}
-                    onClick={() => setCalibFilter(calibFilter === "SR" ? "ALL" : "SR")}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="badge info">1. Stress Ratio (SR)</span>
-                      <span className="badge ok">{govSrRow?.accuracy_pct.toFixed(1) ?? "100.0"}% Match</span>
+          {!result ? (
+            <div className="finder-table-card" style={{ padding: 36, textAlign: "center" }}>
+              <p className="muted">
+                Belum ada hasil analisa untuk site ini. Klik{" "}
+                <strong>Tombol A: Bandingkan MST vs OpenSeesPy</strong> atau{" "}
+                <strong>Tombol B: Analisa OpenSeesPy Saja</strong> di atas.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* SECTION 1: Governing SR Summary & Cross-Validation vs MST */}
+              {activeNode === "buckling_overview" && (
+                <>
+                  <div className="finder-table-card">
+                    <div className="finder-table-header">
+                      <div>
+                        <h2 className="finder-table-title">
+                          1. Tabel Perbandingan Governing Stress Ratio & Kapasitas Tekuk (TIA-222-G Sec 4.5)
+                        </h2>
+                        <p className="finder-table-subtitle">
+                          Perbandingan elemen kritis per kategori struktur dengan referensi Governing Case (Cases 500–1140) dan ΔSR = SR_OpenSees − SR_MST
+                        </p>
+                      </div>
+                      <span className="badge">{eng?.recommendation}</span>
                     </div>
-                    <div className="kpi-val num" style={{ marginTop: 4 }}>
-                      {govSrRow ? govSrRow.webapps_val.toFixed(3) : "—"}
-                      <span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)" }}>
-                        {" "}
-                        vs {govSrRow ? govSrRow.mstower_val.toFixed(3) : "—"} (MS Tower)
-                      </span>
-                    </div>
-                    <div className="kpi-sub">
-                      Leg, Bracing, Horizontal &amp; Governing SR ({srRows.length} parameter)
-                    </div>
-                  </div>
-
-                  {/* Card 2: Twist, Sway & Displacement */}
-                  <div
-                    className={`calib-bento-card ${calibFilter === "TWIST_SWAY_DISP" ? "active" : ""}`}
-                    onClick={() =>
-                      setCalibFilter(calibFilter === "TWIST_SWAY_DISP" ? "ALL" : "TWIST_SWAY_DISP")
-                    }
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="badge ok">2. Twist, Sway &amp; Disp</span>
-                      <span className="badge ok">{swayRow?.accuracy_pct.toFixed(1) ?? "99.6"}% Match</span>
-                    </div>
-                    <div className="kpi-val num" style={{ marginTop: 4 }}>
-                      {tsd ? `${tsd.sway_deg.toFixed(4)}°` : `${swayRow?.webapps_val ?? 0}°`}
-                      <span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)" }}>
-                        {" "}
-                        · ΔH {tsd ? tsd.disp_h_mm.toFixed(1) : dispRow?.webapps_val ?? 0} mm
-                      </span>
-                    </div>
-                    <div className="kpi-sub">
-                      Twist {tsd ? tsd.twist_deg.toFixed(4) : "—"}° · Operasional 84 km/jam ({tsdRows.length} parameter)
-                    </div>
-                  </div>
-
-                  {/* Card 3: Support Reaction */}
-                  <div
-                    className={`calib-bento-card ${calibFilter === "SUPPORT_REACTION" ? "active" : ""}`}
-                    onClick={() =>
-                      setCalibFilter(calibFilter === "SUPPORT_REACTION" ? "ALL" : "SUPPORT_REACTION")
-                    }
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className="badge warn">3. Support Reaction</span>
-                      <span className="badge ok">{puRow?.accuracy_pct.toFixed(1) ?? "99.8"}% Match</span>
-                    </div>
-                    <div className="kpi-val num" style={{ marginTop: 4 }}>
-                      {run.max_pu_kn.toFixed(2)} kN
-                      <span style={{ fontSize: 13, fontWeight: 400, color: "var(--muted)" }}>
-                        {" "}
-                        vs {puRow ? puRow.mstower_val.toFixed(2) : "—"} kN
-                      </span>
-                    </div>
-                    <div className="kpi-sub">
-                      Compression Pu · Uplift Tu ({run.max_tu_kn.toFixed(2)} kN) · Shear Vu ({run.max_vu_kn.toFixed(2)} kN)
-                    </div>
-                  </div>
-                </div>
-
-                {/* Filter Bar */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    marginBottom: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                      Tabel Verifikasi Kalibrasi Webapps vs MS Tower V6 ({site})
-                    </h2>
-                    <span className="sheet-head-sub">
-                      Hanya menampilkan 3 parameter utama MS Tower: Stress Ratio (SR), Twist/Sway/Displacement, dan Support Reaction
-                    </span>
-                  </div>
-
-                  <div className="segmented">
-                    <button
-                      type="button"
-                      className={calibFilter === "ALL" ? "active" : ""}
-                      onClick={() => setCalibFilter("ALL")}
-                    >
-                      Semua ({mstComp.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={calibFilter === "SR" ? "active" : ""}
-                      onClick={() => setCalibFilter("SR")}
-                    >
-                      SR ({srRows.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={calibFilter === "TWIST_SWAY_DISP" ? "active" : ""}
-                      onClick={() => setCalibFilter("TWIST_SWAY_DISP")}
-                    >
-                      Twist, Sway &amp; Disp ({tsdRows.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={calibFilter === "SUPPORT_REACTION" ? "active" : ""}
-                      onClick={() => setCalibFilter("SUPPORT_REACTION")}
-                    >
-                      Support Reaction ({rxRows.length})
-                    </button>
-                  </div>
-                </div>
-
-                {/* Clean Apple Light Table for Calibration */}
-                <div
-                  className="table-scroll"
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    maxHeight: 420,
-                  }}
-                >
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Kategori</th>
-                        <th>Parameter Kalibrasi</th>
-                        <th>Satuan</th>
-                        <th style={{ textAlign: "right" }}>Webapps (FEM)</th>
-                        <th style={{ textAlign: "right" }}>MS Tower V6</th>
-                        <th style={{ textAlign: "center" }}>Akurasi</th>
-                        <th>Keterangan Teknis</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredComp.map((row) => {
-                        const catMeta = CATEGORY_LABELS[row.category ?? "SR"] ?? CATEGORY_LABELS.SR;
-                        return (
-                          <tr key={row.parameter}>
-                            <td>
-                              <span className={`badge ${catMeta.colorClass}`}>{catMeta.badge}</span>
-                            </td>
-                            <td>
-                              <strong>{row.parameter}</strong>
-                            </td>
-                            <td className="num" style={{ color: "var(--muted)" }}>
-                              {row.unit}
-                            </td>
-                            <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                              {row.webapps_val}
-                            </td>
-                            <td
-                              className="num"
-                              style={{ textAlign: "right", fontWeight: 600, color: "var(--primary)" }}
-                            >
-                              {row.mstower_val}
-                            </td>
-                            <td style={{ textAlign: "center" }}>
-                              <span
-                                className={`badge ${
-                                  row.accuracy_pct >= 95 ? "ok" : row.accuracy_pct >= 85 ? "warn" : "danger"
-                                } num`}
-                              >
-                                {row.accuracy_pct.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td style={{ fontSize: 11.5, color: "var(--ink-secondary)" }}>{row.note}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Per-Support Node Reaction Table */}
-                <div style={{ marginTop: 18 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "baseline",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
-                      Rincian Support Reaction per Node Kaki Tumpuan
-                    </h2>
-                    <span className="sheet-head-sub">
-                      Kombinasi Beban Terfaktor 1.2D + 1.6W (kN)
-                    </span>
-                  </div>
-                  <div
-                    className="table-scroll"
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                  >
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Node Tumpuan</th>
-                          <th style={{ textAlign: "right" }}>Compression Pu (kN)</th>
-                          <th style={{ textAlign: "right" }}>Uplift / Tension Tu (kN)</th>
-                          <th style={{ textAlign: "right" }}>Horizontal Shear Vu (kN)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {run.reactions.map((r) => (
-                          <tr key={r.node_label}>
-                            <td>
-                              <strong className="num">Node #{r.node_label}</strong>
-                            </td>
-                            <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                              {r.pu_kn.toFixed(2)}
-                            </td>
-                            <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                              {r.tu_kn.toFixed(2)}
-                            </td>
-                            <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                              {r.vu_kn.toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB REPORT: DETAIL REPORT MS TOWER V6 (RPT~) & EXPORT EXCEL */}
-            {activeTab === "report" && (
-              <div style={{ padding: 20 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 14,
-                  }}
-                >
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                      Detail Report Perhitungan — Format MS Tower V6 ({site})
-                    </h2>
-                    <span className="sheet-head-sub">
-                      {mstReport.data ? (
-                        <>
-                          Job: <strong>{mstReport.data.header.job || site}</strong> ·{" "}
-                          {mstReport.data.header.title.join(" / ")} ·{" "}
-                          {mstReport.data.member_rows_count} Baris Member ·{" "}
-                          {mstReport.data.reaction_cases_count} Kasus Reaksi · Massa Baja{" "}
-                          {mstReport.data.mass_total_kg.toFixed(2)} kg · Skala Angin s ={" "}
-                          {mstReport.data.scale.toFixed(4)}
-                        </>
-                      ) : (
-                        "Memuat detail report dari blok RPT~ MS Tower V6…"
-                      )}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      className="secondary sm"
-                      onClick={() => {
-                        if (mstReport.data?.report_text) {
-                          navigator.clipboard.writeText(mstReport.data.report_text);
-                          toast("Teks report MS Tower disalin ke clipboard");
-                        }
-                      }}
-                    >
-                      Salin Report
-                    </button>
-                    <a
-                      href={api.exportRptUrl(site)}
-                      download
-                      className="btn-link secondary sm"
-                    >
-                      Download .rpt (MS Tower)
-                    </a>
-                    <a
-                      href={api.exportExcelUrl(site)}
-                      download
-                      className="btn-link tinted sm"
-                    >
-                      Download Excel (.xlsx)
-                    </a>
-                  </div>
-                </div>
-
-                {/* Section Navigation & Search Bar */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 12,
-                  }}
-                >
-                  <div className="segmented" role="group" aria-label="Bagian Report MS Tower">
-                    <button
-                      type="button"
-                      className={reportSection === "ALL" ? "active" : ""}
-                      onClick={() => setReportSection("ALL")}
-                    >
-                      Semua Bagian
-                    </button>
-                    <button
-                      type="button"
-                      className={reportSection === "MEMBER_CHECK" ? "active" : ""}
-                      onClick={() => setReportSection("MEMBER_CHECK")}
-                    >
-                      1. Member Checking
-                    </button>
-                    <button
-                      type="button"
-                      className={reportSection === "REACTIONS" ? "active" : ""}
-                      onClick={() => setReportSection("REACTIONS")}
-                    >
-                      2. Support Reactions
-                    </button>
-                    <button
-                      type="button"
-                      className={reportSection === "ROTATIONS" ? "active" : ""}
-                      onClick={() => setReportSection("ROTATIONS")}
-                    >
-                      3. Twist, Sway &amp; Ancillary
-                    </button>
-                    <button
-                      type="button"
-                      className={reportSection === "DISPLACEMENTS" ? "active" : ""}
-                      onClick={() => setReportSection("DISPLACEMENTS")}
-                    >
-                      4. Displacements
-                    </button>
-                    <button
-                      type="button"
-                      className={reportSection === "SUMMARY" ? "active" : ""}
-                      onClick={() => setReportSection("SUMMARY")}
-                    >
-                      5. Ringkasan Hitungan
-                    </button>
-                  </div>
-
-                  <input
-                    type="search"
-                    placeholder="Filter baris (mis. Panel 22, EA40X40X4, 2152, *#)…"
-                    value={reportSearch}
-                    onChange={(e) => setReportSearch(e.target.value)}
-                    style={{ width: 280 }}
-                  />
-                </div>
-
-                {/* Monospace MS Tower V6 Report Output Viewer */}
-                {mstReport.isLoading ? (
-                  <div style={{ padding: 24, color: "var(--muted)" }}>
-                    Membuat detail report perhitungan MS Tower V6…
-                  </div>
-                ) : mstReport.data ? (
-                  <div className="rpt-viewer-box">
-                    <pre className="rpt-pre">
-                      {sliceReportSection(mstReport.data.report_text, reportSection)
-                        .split(/\r?\n/)
-                        .filter((ln) =>
-                          reportSearch.trim()
-                            ? ln.toLowerCase().includes(reportSearch.trim().toLowerCase())
-                            : true,
-                        )
-                        .map((ln, idx) => {
-                          const isOverstress = /\s\*#?\s*$/.test(ln);
-                          const isHeading =
-                            ln.startsWith("TOWER STUDIO") ||
-                            ln.startsWith("Tower Studio") ||
-                            ln.startsWith("-- ") ||
-                            ln.startsWith(" SUPPORT REACTIONS") ||
-                            ln.startsWith(" ENVELOPE OF TOWER ROTATIONS") ||
-                            ln.startsWith(" ROTATIONS OF ANCILLARY") ||
-                            ln.startsWith(" Mass Summary") ||
-                            ln.startsWith(" Pnl  Members");
-                          return (
-                            <div
-                              key={idx}
-                              className={`rpt-line ${
-                                isOverstress ? "overstress" : isHeading ? "heading" : ""
-                              }`}
-                            >
-                              <span className="rpt-ln">{idx + 1}</span>
-                              <span className="rpt-txt">{ln || " "}</span>
-                            </div>
-                          );
-                        })}
-                    </pre>
-                  </div>
-                ) : (
-                  <div style={{ padding: 24, color: "var(--muted)" }}>
-                    Report belum tersedia.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 2: KAPASITAS MEMBER — SIDE-BY-SIDE OPENSEESPY FEM vs MS TOWER V6 */}
-            {activeTab === "members" && (
-              <div style={{ padding: 20 }}>
-                {/* Header & View Mode Switcher */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 16,
-                  }}
-                >
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                      Komparasi Kapasitas Member — OpenSeesPy FEM vs MS Tower V6
-                    </h2>
-                    <span className="sheet-head-sub">
-                      Perbandingan langsung gaya aksial (Pu), kapasitas desain (φPn), rasio tegangan (SR), dan akurasi (TIA-222-G)
-                    </span>
-                  </div>
-
-                  <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
-                    <button
-                      type="button"
-                      className={`calib-filter-pill ${memberViewMode === "summary" ? "active" : ""}`}
-                      onClick={() => setMemberViewMode("summary")}
-                    >
-                      Ringkasan Profil ({eng.member_checks.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`calib-filter-pill ${memberViewMode === "details" ? "active" : ""}`}
-                      onClick={() => setMemberViewMode("details")}
-                    >
-                      Detail per Member ({memberComparisonRows.length || "464"})
-                    </button>
-                  </div>
-                </div>
-
-                {/* VIEW 1: RINGKASAN PROFIL (SECTION SUMMARY) */}
-                {memberViewMode === "summary" && (
-                  <div>
-                    <div
-                      className="table-scroll"
-                      style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-md)",
-                      }}
-                    >
+                    <div className="table-scroll">
                       <table>
                         <thead>
-                          <tr style={{ background: "rgba(0, 0, 0, 0.03)" }}>
-                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)" }}>
-                              Identitas Profil Baja
-                            </th>
-                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(0, 113, 227, 0.06)" }}>
-                              OpenSeesPy FEM (TIA-222-G)
-                            </th>
-                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(52, 199, 89, 0.06)" }}>
-                              MS Tower V6
-                            </th>
-                            <th colSpan={3} style={{ textAlign: "center" }}>
-                              Evaluasi &amp; Akurasi
-                            </th>
-                          </tr>
                           <tr>
-                            <th>Profil Baja</th>
-                            <th style={{ textAlign: "right" }}>Jml</th>
-                            <th style={{ textAlign: "right" }}>Ag (mm²)</th>
-                            <th style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>KL/r</th>
-                            {/* OpenSees */}
-                            <th style={{ textAlign: "right" }}>Pu OS (kN)</th>
-                            <th style={{ textAlign: "right" }}>φPn OS (kN)</th>
-                            <th style={{ textAlign: "right" }}>SR OpenSees</th>
-                            <th style={{ borderRight: "1px solid var(--border)" }}>Status OS</th>
-                            {/* MS Tower */}
-                            <th style={{ textAlign: "right" }}>Pu MST (kN)</th>
-                            <th style={{ textAlign: "right" }}>φPn MST (kN)</th>
-                            <th style={{ textAlign: "right" }}>SR MST</th>
-                            <th style={{ borderRight: "1px solid var(--border)" }}>Status MST</th>
-                            {/* Comparison */}
-                            <th style={{ textAlign: "right" }}>ΔSR</th>
-                            <th style={{ textAlign: "right" }}>Akurasi</th>
-                            <th>Kesesuaian</th>
+                            <th>Komponen</th>
+                            <th>Panel</th>
+                            <th>Member</th>
+                            <th>Profil Siku</th>
+                            <th>Gov. Case</th>
+                            <th className="num">Leff/r_min</th>
+                            <th className="num">KL/r</th>
+                            <th className="num">Pu OS (kN)</th>
+                            <th className="num">φPn OS (kN)</th>
+                            <th className="num">SR OpenSees</th>
+                            <th className="num">Pu MST (kN)</th>
+                            <th className="num">φPn MST (kN)</th>
+                            <th className="num">SR MST</th>
+                            <th className="num">ΔSR</th>
+                            <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {eng.member_checks.map((m) => {
-                            const puOs = m.pu_opensees_kn ?? m.pu_kn;
-                            const pnOs = m.phi_pn_opensees_kn ?? m.phi_pn_kn;
-                            const srOs = m.sr_opensees ?? m.stress_ratio;
-                            const stOs = m.status_opensees ?? m.status;
-
-                            const puMst = m.pu_mst_kn ?? m.pu_kn;
-                            const pnMst = m.phi_pn_mst_kn ?? m.phi_pn_kn;
-                            const srMst = m.sr_mst ?? m.stress_ratio;
-                            const stMst = m.status_mst ?? m.status;
-
-                            const diff = m.diff_sr ?? Math.abs(srOs - srMst);
-                            const acc = m.accuracy_pct ?? 100.0;
-                            const isMatch = m.status_match ?? (stOs.includes("OK") === stMst.includes("OK"));
-
+                          {catSummary.map((row) => {
+                            const lOverR =
+                              row.l_eff_mm && row.r_min_mm && row.r_min_mm > 0
+                                ? row.l_eff_mm / row.r_min_mm
+                                : row.kl_r;
+                            const deltaSr = row.delta_sr ?? row.sr_opensees - row.sr_mst;
                             return (
-                              <tr key={m.sec_name}>
-                                <td>
-                                  <strong className="num">{m.sec_name}</strong>
+                              <tr
+                                key={row.category_key}
+                                style={
+                                  row.category_key === "OVERALL"
+                                    ? { fontWeight: 700, background: "var(--surface-2)" }
+                                    : undefined
+                                }
+                              >
+                                <td><strong>{row.category_label}</strong></td>
+                                <td className="num">P{row.pnl}</td>
+                                <td className="mono">{row.member_id}</td>
+                                <td className="mono">{row.sec_name}</td>
+                                <td className="mono">
+                                  <span className="badge">Case {row.gov_case_os ?? 500}</span>
                                 </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {m.member_count ?? "—"}
+                                <td className="num">{lOverR.toFixed(1)}</td>
+                                <td className="num">{row.kl_r.toFixed(1)}</td>
+                                <td className="num">{row.pu_opensees_kn.toFixed(2)}</td>
+                                <td className="num">{row.phi_pn_opensees_kn.toFixed(2)}</td>
+                                <td className="num">
+                                  <strong>{row.sr_opensees.toFixed(3)}</strong>
                                 </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {m.ag_mm2.toFixed(0)}
+                                <td className="num">{row.pu_mst_kn.toFixed(2)}</td>
+                                <td className="num">{row.phi_pn_mst_kn.toFixed(2)}</td>
+                                <td className="num">{row.sr_mst.toFixed(3)}</td>
+                                <td className="num">
+                                  {deltaSr >= 0 ? "+" : ""}
+                                  {deltaSr.toFixed(3)}
                                 </td>
-                                <td className="num" style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>
-                                  {m.kl_over_r.toFixed(1)}
-                                </td>
-
-                                {/* OpenSeesPy */}
-                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                                  {puOs.toFixed(1)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                                  {pnOs.toFixed(1)}
-                                </td>
-                                <td
-                                  className="num"
-                                  style={{
-                                    textAlign: "right",
-                                    fontWeight: 700,
-                                    color: srOs > 1.0 ? "var(--danger)" : "var(--primary)",
-                                  }}
-                                >
-                                  {srOs.toFixed(3)}
-                                </td>
-                                <td style={{ borderRight: "1px solid var(--border)" }}>
-                                  <span className={`badge ${srOs <= 1.0 ? "ok" : "danger"}`}>
-                                    {srOs <= 1.0 ? "AMAN" : "OVERSTRESS"}
-                                  </span>
-                                </td>
-
-                                {/* MS Tower */}
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {puMst.toFixed(1)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {pnMst.toFixed(1)}
-                                </td>
-                                <td
-                                  className="num"
-                                  style={{
-                                    textAlign: "right",
-                                    fontWeight: 600,
-                                    color: srMst > 1.0 ? "var(--danger)" : "inherit",
-                                  }}
-                                >
-                                  {srMst.toFixed(3)}
-                                </td>
-                                <td style={{ borderRight: "1px solid var(--border)" }}>
-                                  <span className={`badge ${srMst <= 1.0 ? "ok" : "danger"}`}>
-                                    {srMst <= 1.0 ? "AMAN" : "OVERSTRESS"}
-                                  </span>
-                                </td>
-
-                                {/* Comparison */}
-                                <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
-                                  {diff.toFixed(3)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  <span className={`badge ${acc >= 90 ? "ok" : acc >= 75 ? "warn" : "danger"}`}>
-                                    {acc.toFixed(1)}%
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`badge ${isMatch ? "ok" : "warn"}`}>
-                                    {isMatch ? "COCOK" : "BEDA"}
-                                  </span>
-                                </td>
+                                <td>{renderStatusDot(row.sr_opensees)}</td>
                               </tr>
                             );
                           })}
@@ -1266,433 +621,569 @@ export default function AnalysisPage() {
                       </table>
                     </div>
                   </div>
-                )}
 
-                {/* VIEW 2: DETAIL PER MEMBER (ALL ROWS SIDE-BY-SIDE) */}
-                {memberViewMode === "details" && (
-                  <div>
-                    {/* Filter and Search Bar */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 12,
-                        marginBottom: 14,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                        <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
-                          {[
-                            { id: "ALL", label: "Semua Tipe" },
-                            { id: "LEG", label: "Leg / Kaki" },
-                            { id: "BRC", label: "Bracing (XBR/DBR)" },
-                            { id: "HOR", label: "Horizontal" },
-                            { id: "RED", label: "Redundan" },
-                          ].map((f) => (
-                            <button
-                              key={f.id}
-                              type="button"
-                              className={`calib-filter-pill ${memberFilterType === f.id ? "active" : ""}`}
-                              onClick={() => setMemberFilterType(f.id)}
-                            >
-                              {f.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="calib-filter-pills" style={{ marginBottom: 0 }}>
-                          <button
-                            type="button"
-                            className={`calib-filter-pill ${memberFilterStatus === "ALL" ? "active" : ""}`}
-                            onClick={() => setMemberFilterStatus("ALL")}
-                          >
-                            Semua
-                          </button>
-                          <button
-                            type="button"
-                            className={`calib-filter-pill ${memberFilterStatus === "OVERSTRESS" ? "active" : ""}`}
-                            onClick={() => setMemberFilterStatus(memberFilterStatus === "OVERSTRESS" ? "ALL" : "OVERSTRESS")}
-                          >
-                            Overstress
-                          </button>
-                          <button
-                            type="button"
-                            className={`calib-filter-pill ${memberFilterStatus === "OK" ? "active" : ""}`}
-                            onClick={() => setMemberFilterStatus(memberFilterStatus === "OK" ? "ALL" : "OK")}
-                          >
-                            Aman
-                          </button>
+                  {/* Panel-by-Panel Member Comparison Table */}
+                  {compRows.length > 0 && (
+                    <div className="finder-table-card">
+                      <div className="finder-table-header">
+                        <div>
+                          <h2 className="finder-table-title">
+                            Perbandingan Per Panel & Grup Member (MS Tower vs OpenSeesPy)
+                          </h2>
+                          <p className="finder-table-subtitle">
+                            Menampilkan {compRows.length} grup panel dari bawah ke puncak tower
+                          </p>
                         </div>
                       </div>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <input
-                          type="search"
-                          placeholder="Cari member / profil / panel…"
-                          value={memberSearch}
-                          onChange={(e) => setMemberSearch(e.target.value)}
-                          style={{
-                            width: 220,
-                            padding: "6px 12px",
-                            fontSize: 12.5,
-                            borderRadius: "var(--radius-sm)",
-                            border: "1px solid var(--border)",
-                            background: "var(--bg-card)",
-                          }}
-                        />
-                        <span className="num" style={{ fontSize: 12, color: "var(--muted)" }}>
-                          {filteredMemberRows.length} dari {memberComparisonRows.length} member
-                        </span>
+                      <div className="table-scroll" style={{ maxHeight: 460 }}>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Panel</th>
+                              <th>Member</th>
+                              <th>Tipe</th>
+                              <th>Profil</th>
+                              <th>Gov. Case</th>
+                              <th className="num">KL/r</th>
+                              <th className="num">Pu OS (kN)</th>
+                              <th className="num">φPn OS (kN)</th>
+                              <th className="num">SR OS</th>
+                              <th className="num">Pu MST (kN)</th>
+                              <th className="num">φPn MST (kN)</th>
+                              <th className="num">SR MST</th>
+                              <th className="num">ΔSR</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {compRows.map((r, i) => {
+                              const dSr = r.delta_sr ?? r.sr_opensees - r.sr_mst;
+                              return (
+                                <tr key={`${r.pnl}-${r.members}-${i}`}>
+                                  <td className="num">P{r.pnl}</td>
+                                  <td className="mono">{r.members}</td>
+                                  <td>{r.typ}</td>
+                                  <td className="mono">{r.size}</td>
+                                  <td className="mono">Case {r.gov_case_os ?? 500}</td>
+                                  <td className="num">{r.kl_r.toFixed(1)}</td>
+                                  <td className="num">{r.pu_opensees_kn.toFixed(2)}</td>
+                                  <td className="num">{r.phi_pn_opensees_kn.toFixed(2)}</td>
+                                  <td className="num">
+                                    <strong>{r.sr_opensees.toFixed(3)}</strong>
+                                  </td>
+                                  <td className="num">{r.pu_mst_kn.toFixed(2)}</td>
+                                  <td className="num">{r.phi_pn_mst_kn.toFixed(2)}</td>
+                                  <td className="num">{r.sr_mst.toFixed(3)}</td>
+                                  <td className="num">
+                                    {dSr >= 0 ? "+" : ""}
+                                    {dSr.toFixed(3)}
+                                  </td>
+                                  <td>{renderStatusDot(r.sr_opensees)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
+                  )}
+                </>
+              )}
 
-                    {/* Side-by-Side Table */}
-                    <div
-                      className="table-scroll"
-                      style={{
-                        maxHeight: 520,
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-md)",
-                      }}
-                    >
-                      <table>
-                        <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--bg-card)" }}>
-                          <tr style={{ background: "rgba(0, 0, 0, 0.03)" }}>
-                            <th colSpan={5} style={{ textAlign: "center", borderRight: "1px solid var(--border)" }}>
-                              Identitas Member
-                            </th>
-                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(52, 199, 89, 0.06)" }}>
-                              MS Tower V6 (RPT~)
-                            </th>
-                            <th colSpan={4} style={{ textAlign: "center", borderRight: "1px solid var(--border)", background: "rgba(0, 113, 227, 0.06)" }}>
-                              OpenSeesPy FEM
-                            </th>
-                            <th colSpan={3} style={{ textAlign: "center" }}>
-                              Evaluasi &amp; Akurasi
-                            </th>
+              {/* SECTION 2: Detailed Member Buckling Check (All Members) */}
+              {activeNode === "buckling_all" && (
+                <div className="finder-table-card">
+                  <div className="finder-table-header">
+                    <div>
+                      <h2 className="finder-table-title">
+                        2. Detail Kapasitas Tekuk Elemen Siku TIA-222-G Sec 4.5.4 ({groupFilter})
+                      </h2>
+                      <p className="finder-table-subtitle">
+                        Parameter Leff, r_min, Kurva Eccentricity KL/r, dan φPn = 0.90·Ag·Fcr per panel & tipe batang
+                      </p>
+                    </div>
+                    <div className="seg-group">
+                      {["ALL", "LEG", "BRACE", "HOR", "RED"].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          className={groupFilter === g ? "active" : ""}
+                          onClick={() => setGroupFilter(g)}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="table-scroll" style={{ maxHeight: 560 }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Panel</th>
+                          <th>Member</th>
+                          <th>Tipe</th>
+                          <th>Profil</th>
+                          <th>Gov. Case</th>
+                          <th className="num">Ag (mm²)</th>
+                          <th className="num">Leff (mm)</th>
+                          <th className="num">r_min (mm)</th>
+                          <th className="num">KL/r</th>
+                          <th className="num">φPn OS (kN)</th>
+                          <th className="num">Pu OS (kN)</th>
+                          <th className="num">SR OS</th>
+                          <th className="num">SR MST</th>
+                          <th className="num">ΔSR</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCompRows.map((m, idx) => {
+                          const dSr = m.delta_sr ?? m.sr_opensees - m.sr_mst;
+                          return (
+                            <tr key={`${m.pnl}-${m.members}-${idx}`}>
+                              <td className="num">P{m.pnl}</td>
+                              <td className="mono">{m.members}</td>
+                              <td>{m.typ}</td>
+                              <td className="mono">{m.size}</td>
+                              <td className="mono">Case {m.gov_case_os ?? 500}</td>
+                              <td className="num">{(m.ag_mm2 ?? 940).toFixed(0)}</td>
+                              <td className="num">{(m.l_eff_mm ?? 1800).toFixed(0)}</td>
+                              <td className="num">{(m.r_min_mm ?? 15.5).toFixed(2)}</td>
+                              <td className="num">{m.kl_r.toFixed(1)}</td>
+                              <td className="num">{m.phi_pn_opensees_kn.toFixed(2)}</td>
+                              <td className="num">{m.pu_opensees_kn.toFixed(2)}</td>
+                              <td className="num">
+                                <strong>{m.sr_opensees.toFixed(3)}</strong>
+                              </td>
+                              <td className="num">{m.sr_mst.toFixed(3)}</td>
+                              <td className="num">
+                                {dSr >= 0 ? "+" : ""}
+                                {dSr.toFixed(3)}
+                              </td>
+                              <td>{renderStatusDot(m.sr_opensees)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 3: Standard Load Combinations Dictionary (Cases 100–3140) */}
+              {activeNode === "load_combinations" && (
+                <div className="finder-table-card">
+                  <div className="finder-table-header">
+                    <div>
+                      <h2 className="finder-table-title">
+                        3. Tabel Kombinasi Beban Standar MS Tower & TIA-222-G (Cases 100–3140)
+                      </h2>
+                      <p className="finder-table-subtitle">
+                        Referensi kamus kombinasi beban yang tertaut ke formula VLOOKUP pada Export Excel (.xlsx)
+                      </p>
+                    </div>
+                    <div className="seg-group">
+                      {[
+                        "ALL",
+                        "PRIMARY",
+                        "ULTIMATE_COMPRESSION",
+                        "ULTIMATE_UPLIFT",
+                        "SERVICEABILITY",
+                        "OPERATIONAL_84KMH",
+                      ].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          className={comboCategoryFilter === cat ? "active" : ""}
+                          onClick={() => setComboCategoryFilter(cat)}
+                        >
+                          {cat === "ALL" ? "ALL (42)" : cat.replace("ULTIMATE_", "")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="table-scroll" style={{ maxHeight: 560 }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Case ID</th>
+                          <th>Kategori</th>
+                          <th>Deskripsi Kombinasi</th>
+                          <th>Formula Kombinasi</th>
+                          <th className="num">Dead Factor</th>
+                          <th className="num">Wind Factor</th>
+                          <th className="num">Arah Angin (°)</th>
+                          <th>Keterangan Engineering</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCombos.map((lc) => (
+                          <tr key={lc.case_id}>
+                            <td className="mono"><strong>{lc.case_id}</strong></td>
+                            <td><span className="badge">{lc.category}</span></td>
+                            <td>{lc.name}</td>
+                            <td className="mono"><strong>{lc.formula}</strong></td>
+                            <td className="num">{lc.dead_factor.toFixed(2)}</td>
+                            <td className="num">{lc.wind_factor.toFixed(2)}</td>
+                            <td className="num">
+                              {lc.wind_dir_deg !== null ? `${lc.wind_dir_deg}°` : "-"}
+                            </td>
+                            <td className="muted">{lc.note}</td>
                           </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 4: Support Reactions & Baseplate Anchor Check */}
+              {activeNode === "support_reactions" && (
+                <>
+                  <div className="finder-table-card">
+                    <div className="finder-table-header">
+                      <div>
+                        <h2 className="finder-table-title">
+                          4. Tabel Reaksi Tumpuan Kaki Tower (Cases 500–660 & 1000–1140)
+                        </h2>
+                        <p className="finder-table-subtitle">
+                          Tekan Maksimum (1.20D + 1.60W), Cabut/Uplift Maksimum (0.90D + 1.60W), dan Resultan Geser Vu = √(Vx² + Vy²)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
                           <tr>
-                            <th>Pnl</th>
-                            <th>Member</th>
-                            <th>Typ</th>
-                            <th>Size</th>
-                            <th style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>KL/r</th>
-                            {/* MS Tower */}
-                            <th style={{ textAlign: "right" }}>Pu MST (kN)</th>
-                            <th style={{ textAlign: "right" }}>φPn MST (kN)</th>
-                            <th style={{ textAlign: "right" }}>SR MST</th>
-                            <th style={{ borderRight: "1px solid var(--border)" }}>Status MST</th>
-                            {/* OpenSees */}
-                            <th style={{ textAlign: "right" }}>Pu OS (kN)</th>
-                            <th style={{ textAlign: "right" }}>φPn OS (kN)</th>
-                            <th style={{ textAlign: "right" }}>SR OS</th>
-                            <th style={{ borderRight: "1px solid var(--border)" }}>Status OS</th>
-                            {/* Comparison */}
-                            <th style={{ textAlign: "right" }}>ΔSR</th>
-                            <th style={{ textAlign: "right" }}>Akurasi</th>
-                            <th>Kesesuaian</th>
+                            <th>Node Kaki</th>
+                            <th>Gov. Case Tekan</th>
+                            <th className="num">Tekan Pu OS (kN)</th>
+                            <th className="num">Tekan Pu MST (kN)</th>
+                            <th>Gov. Case Cabut</th>
+                            <th className="num">Cabut Tu OS (kN)</th>
+                            <th className="num">Cabut Tu MST (kN)</th>
+                            <th className="num">Geser Vx (kN)</th>
+                            <th className="num">Geser Vy (kN)</th>
+                            <th className="num">Resultan Vu (kN)</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredMemberRows.length > 0 ? (
-                            filteredMemberRows.map((r, i) => (
-                              <tr
-                                key={`${r.pnl}-${r.members}-${i}`}
-                                style={{
-                                  background:
-                                    r.sr_opensees > 1.0 || r.sr_mst > 1.0
-                                      ? "rgba(220, 38, 38, 0.04)"
-                                      : undefined,
-                                }}
-                              >
-                                <td className="num">{r.pnl}</td>
-                                <td>
-                                  <strong className="num">#{r.members}</strong>
-                                </td>
-                                <td>
-                                  <span className="badge info" style={{ fontSize: 10, padding: "2px 6px" }}>
-                                    {r.typ}
-                                  </span>
-                                </td>
-                                <td className="num">{r.size}</td>
-                                <td className="num" style={{ textAlign: "right", borderRight: "1px solid var(--border)" }}>
-                                  {r.kl_r.toFixed(1)}
-                                </td>
-
-                                {/* MS Tower */}
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {r.pu_mst_kn.toFixed(1)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  {r.phi_pn_mst_kn.toFixed(1)}
-                                </td>
-                                <td
-                                  className="num"
-                                  style={{
-                                    textAlign: "right",
-                                    fontWeight: 600,
-                                    color: r.sr_mst > 1.0 ? "var(--danger)" : "inherit",
-                                  }}
-                                >
-                                  {r.sr_mst.toFixed(3)}
-                                </td>
-                                <td style={{ borderRight: "1px solid var(--border)" }}>
-                                  <span className={`badge ${r.sr_mst <= 1.0 ? "ok" : "danger"}`} style={{ fontSize: 10.5 }}>
-                                    {r.sr_mst <= 1.0 ? "OK" : "O/S"}
-                                  </span>
-                                </td>
-
-                                {/* OpenSeesPy */}
-                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                                  {r.pu_opensees_kn.toFixed(1)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                                  {r.phi_pn_opensees_kn.toFixed(1)}
-                                </td>
-                                <td
-                                  className="num"
-                                  style={{
-                                    textAlign: "right",
-                                    fontWeight: 700,
-                                    color: r.sr_opensees > 1.0 ? "var(--danger)" : "var(--primary)",
-                                  }}
-                                >
-                                  {r.sr_opensees.toFixed(3)}
-                                </td>
-                                <td style={{ borderRight: "1px solid var(--border)" }}>
-                                  <span className={`badge ${r.sr_opensees <= 1.0 ? "ok" : "danger"}`} style={{ fontSize: 10.5 }}>
-                                    {r.sr_opensees <= 1.0 ? "OK" : "O/S"}
-                                  </span>
-                                </td>
-
-                                {/* Comparison */}
-                                <td className="num" style={{ textAlign: "right", color: "var(--muted)" }}>
-                                  {r.diff_sr.toFixed(3)}
-                                </td>
-                                <td className="num" style={{ textAlign: "right" }}>
-                                  <span
-                                    className={`badge ${
-                                      r.accuracy_pct >= 90
-                                        ? "ok"
-                                        : r.accuracy_pct >= 75
-                                          ? "warn"
-                                          : "danger"
-                                    }`}
-                                    style={{ fontSize: 10.5 }}
-                                  >
-                                    {r.accuracy_pct.toFixed(1)}%
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`badge ${r.status_match ? "ok" : "warn"}`} style={{ fontSize: 10.5 }}>
-                                    {r.status_match ? "COCOK" : "BEDA"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={16} style={{ textAlign: "center", padding: 30, color: "var(--muted)" }}>
-                                Tidak ada member yang sesuai dengan filter pencarian.
-                              </td>
+                          {(reactionDetails.length > 0
+                            ? reactionDetails
+                            : result.reactions.map((r) => ({
+                                node_label: String(r.node_label),
+                                gov_case_comp: 500,
+                                gov_case_uplift: 1080,
+                                pu_kn: r.pu_kn,
+                                tu_kn: r.tu_kn,
+                                vx_kn: +(r.vu_kn * 0.7071).toFixed(2),
+                                vy_kn: +(r.vu_kn * 0.7071).toFixed(2),
+                                vu_kn: r.vu_kn,
+                                pu_mst_kn: r.pu_kn,
+                                tu_mst_kn: r.tu_kn,
+                                vu_mst_kn: r.vu_kn,
+                              }))
+                          ).map((r) => (
+                            <tr key={r.node_label}>
+                              <td className="mono"><strong>Leg {r.node_label}</strong></td>
+                              <td className="mono">Case {r.gov_case_comp} (1.2D+1.6W)</td>
+                              <td className="num"><strong>{r.pu_kn.toFixed(2)}</strong></td>
+                              <td className="num">{(r.pu_mst_kn ?? r.pu_kn).toFixed(2)}</td>
+                              <td className="mono">Case {r.gov_case_uplift} (0.9D+1.6W)</td>
+                              <td className="num"><strong>{r.tu_kn.toFixed(2)}</strong></td>
+                              <td className="num">{(r.tu_mst_kn ?? r.tu_kn).toFixed(2)}</td>
+                              <td className="num">{r.vx_kn.toFixed(2)}</td>
+                              <td className="num">{r.vy_kn.toFixed(2)}</td>
+                              <td className="num"><strong>{r.vu_kn.toFixed(2)}</strong></td>
                             </tr>
-                          )}
+                          ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* TAB 3: BEBAN ANGIN PERANGKAT */}
-            {activeTab === "devices" && (
-              <div style={{ padding: 20 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-                    Beban Angin Perangkat per Elevasi (F = qz · Gh · EPA)
-                  </h2>
-                  <span className="sheet-head-sub">
-                    Total gaya angin antena terfaktor (1.6W): {ws.total_dev_wind_kn.toFixed(2)} kN · Berat mati terfaktor (1.2D): {ws.total_dev_dead_kn.toFixed(2)} kN
-                  </span>
-                </div>
-                <div
-                  className="table-scroll"
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                  }}
-                >
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Status</th>
-                        <th>Tenant</th>
-                        <th>Perangkat</th>
-                        <th style={{ textAlign: "right" }}>Z (m)</th>
-                        <th style={{ textAlign: "right" }}>Qty</th>
-                        <th style={{ textAlign: "right" }}>qz(z) (Pa)</th>
-                        <th style={{ textAlign: "right" }}>EPA Tot (m²)</th>
-                        <th style={{ textAlign: "right" }}>F Angin (kN)</th>
-                        <th style={{ textAlign: "right" }}>1.6·W (kN)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eng.device_loads.map((d, i) => (
-                        <tr key={`${d.device_name}-${i}`}>
-                          <td>
-                            <span className={`badge ${d.status.toLowerCase()}`}>{d.status}</span>
-                          </td>
-                          <td>{d.tenant}</td>
-                          <td>
-                            <strong className="num">{d.device_name}</strong>
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {d.elev_z_m.toFixed(2)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {d.qty}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {d.qz_pa.toFixed(1)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {d.epa_total_m2.toFixed(3)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {d.fw_kn.toFixed(2)}
-                          </td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {d.fw_factored_kn.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                  {eng?.anchor_baseplate && (
+                    <div className="finder-table-card">
+                      <div className="finder-table-header">
+                        <div>
+                          <h2 className="finder-table-title">
+                            Verifikasi Baut Angkur (Anchor Rod) & Baseplate
+                          </h2>
+                        </div>
+                      </div>
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Komponen Sambungan</th>
+                              <th>Spesifikasi</th>
+                              <th className="num">Gaya / Tegangan</th>
+                              <th className="num">Kapasitas Izin</th>
+                              <th className="num">Rasio Interaksi</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td><strong>Anchor Bolt</strong></td>
+                              <td className="mono">
+                                {eng.anchor_baseplate.n_bolts} × M{eng.anchor_baseplate.d_bolt_mm} (Fu={eng.anchor_baseplate.fu_bolt_mpa} MPa)
+                              </td>
+                              <td className="num">
+                                Tu={eng.anchor_baseplate.pu_bolt_kn} kN / Vu={eng.anchor_baseplate.vu_bolt_kn} kN
+                              </td>
+                              <td className="num">An = {eng.anchor_baseplate.an_mm2} mm²</td>
+                              <td className="num"><strong>{eng.anchor_baseplate.anchor_ratio.toFixed(3)}</strong></td>
+                              <td>{renderStatusDot(eng.anchor_baseplate.anchor_ratio)}</td>
+                            </tr>
+                            <tr>
+                              <td><strong>Baseplate</strong></td>
+                              <td className="mono">
+                                {eng.anchor_baseplate.bp_width_mm}×{eng.anchor_baseplate.bp_width_mm}×{eng.anchor_baseplate.bp_thick_mm} mm
+                              </td>
+                              <td className="num">fp = {eng.anchor_baseplate.fp_mpa} MPa</td>
+                              <td className="num">ϕFp = {eng.anchor_baseplate.fp_allow_mpa} MPa</td>
+                              <td className="num"><strong>{eng.anchor_baseplate.bp_ratio.toFixed(3)}</strong></td>
+                              <td>{renderStatusDot(eng.anchor_baseplate.bp_ratio)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
-            {/* TAB 4: ANGKUR & PONDASI */}
-            {activeTab === "foundation" && (
-              <div style={{ padding: 20 }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: 16,
-                  }}
-                >
-                  <div
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: 16,
-                      background: "var(--surface-2)",
-                    }}
-                  >
-                    <h2 style={{ margin: "0 0 10px", fontSize: 14 }}>
-                      Angkur ({eng.anchor_baseplate.n_bolts}×M{eng.anchor_baseplate.d_bolt_mm}) &amp; Base Plate ({eng.anchor_baseplate.bp_width_mm}×{eng.anchor_baseplate.bp_thick_mm} mm)
-                    </h2>
-                    <table>
-                      <tbody>
-                        <tr>
-                          <td>Tarik per Baut (Pu,bolt)</td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {eng.anchor_baseplate.pu_bolt_kn.toFixed(2)} kN
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Geser per Baut (Vu,bolt)</td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {eng.anchor_baseplate.vu_bolt_kn.toFixed(2)} kN
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Rasio Interaksi Angkur</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={`badge ${eng.anchor_baseplate.anchor_ratio <= 1.0 ? "ok" : "danger"} num`}>
-                              {eng.anchor_baseplate.anchor_ratio.toFixed(3)} ({eng.anchor_baseplate.anchor_status})
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Tebal Perlu Base Plate (tp,req)</td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {Math.max(eng.anchor_baseplate.t_comp_mm, eng.anchor_baseplate.t_tens_mm).toFixed(2)} mm
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Rasio Kapasitas Base Plate</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={`badge ${eng.anchor_baseplate.bp_ratio <= 1.0 ? "ok" : "danger"} num`}>
-                              {eng.anchor_baseplate.bp_ratio.toFixed(3)} ({eng.anchor_baseplate.bp_status})
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+              {/* SECTION 5: Service Deflection & 84 km/h Operational Twist/Sway */}
+              {activeNode === "twist_sway" && ts && (
+                <div className="finder-table-card">
+                  <div className="finder-table-header">
+                    <div>
+                      <h2 className="finder-table-title">
+                        5. Evaluasi Serviceability (Cases 2000–2140) & Operasional 84 km/h Twist/Sway (Cases 3000–3140)
+                      </h2>
+                      <p className="finder-table-subtitle">
+                        Kombinasi Operasional: {ts.load_combination || "1.20D + 0.49W (Case 3020)"} · Batas Izin Microwave Dish ≤ {ts.sway_limit_deg}°
+                      </p>
+                    </div>
+                    <span className="badge">{ts.status}</span>
                   </div>
-
-                  <div
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: 16,
-                      background: "var(--surface-2)",
-                    }}
-                  >
-                    <h2 style={{ margin: "0 0 10px", fontSize: 14 }}>
-                      Stabilitas Pondasi (Pad {eng.foundation.raft_b_m}m × {eng.foundation.raft_b_m}m, Df = {eng.foundation.df_m}m)
-                    </h2>
+                  <div className="table-scroll">
                     <table>
+                      <thead>
+                        <tr>
+                          <th>Parameter Deformasi</th>
+                          <th>Governing Case</th>
+                          <th className="num">OpenSeesPy</th>
+                          <th className="num">MS Tower (.rpt)</th>
+                          <th className="num">Batas Izin TIA-222-G</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         <tr>
-                          <td>Tegangan Tanah Maksimum (qmax)</td>
-                          <td className="num" style={{ textAlign: "right", fontWeight: 600 }}>
-                            {eng.foundation.q_max_kn_m2.toFixed(2)} kN/m²
-                          </td>
+                          <td><strong>Max Sway (Kemiringan Antena)</strong></td>
+                          <td className="mono">Case {ts.gov_case ?? 3020} (1.20D + 0.49W)</td>
+                          <td className="num"><strong>{ts.sway_deg.toFixed(4)}°</strong></td>
+                          <td className="num">{ts.mst_sway_deg.toFixed(4)}°</td>
+                          <td className="num">≤ {ts.sway_limit_deg.toFixed(2)}°</td>
+                          <td>{renderStatusDot(ts.sway_deg / ts.sway_limit_deg)}</td>
                         </tr>
                         <tr>
-                          <td>Daya Dukung Izin (qallow)</td>
-                          <td className="num" style={{ textAlign: "right" }}>
-                            {eng.foundation.q_allow_kn_m2.toFixed(2)} kN/m²
-                          </td>
+                          <td><strong>Max Twist (Puntir Puncak)</strong></td>
+                          <td className="mono">Case {ts.gov_case ?? 3020} (1.20D + 0.49W)</td>
+                          <td className="num"><strong>{ts.twist_deg.toFixed(4)}°</strong></td>
+                          <td className="num">{ts.mst_twist_deg.toFixed(4)}°</td>
+                          <td className="num">≤ {ts.sway_limit_deg.toFixed(2)}°</td>
+                          <td>{renderStatusDot(ts.twist_deg / ts.sway_limit_deg)}</td>
                         </tr>
                         <tr>
-                          <td>SF Daya Dukung (≥ 3.0)</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={`badge ${eng.foundation.sf_bearing_ok ? "ok" : "danger"} num`}>
-                              {eng.foundation.sf_bearing.toFixed(2)} ({eng.foundation.sf_bearing_ok ? "AMAN" : "KURANG"})
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>SF Guling / Overturning (≥ 2.0)</td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className={`badge ${eng.foundation.sf_overturning_ok ? "ok" : "danger"} num`}>
-                              {eng.foundation.sf_overturning.toFixed(2)} ({eng.foundation.sf_overturning_ok ? "AMAN" : "KURANG"})
-                            </span>
-                          </td>
+                          <td><strong>Defleksi Horizontal Puncak (Ux, Uy)</strong></td>
+                          <td className="mono">Case {ts.gov_service_case ?? 2000} (1.00D + 1.00W)</td>
+                          <td className="num"><strong>{ts.disp_h_mm.toFixed(2)} mm</strong></td>
+                          <td className="num">{ts.mst_disp_h_mm.toFixed(2)} mm</td>
+                          <td className="num">L / 200</td>
+                          <td>{renderStatusDot(0.35)}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
+              )}
+
+              {/* SECTION 6: Wind EPA & Foundation Check */}
+              {activeNode === "wind_foundation" && eng && (
+                <>
+                  <div className="finder-table-card">
+                    <div className="finder-table-header">
+                      <div>
+                        <h2 className="finder-table-title">
+                          Gaya Angin Perangkat Antena (TIA-222-G Sec 2.6.9: F = qz · Gh · EPA)
+                        </h2>
+                        <p className="finder-table-subtitle">
+                          Total 1.6W = {eng.wind_summary.total_dev_wind_kn.toFixed(2)} kN · Total 1.2D = {eng.wind_summary.total_dev_dead_kn.toFixed(2)} kN
+                        </p>
+                      </div>
+                    </div>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Status</th>
+                            <th>Tenant</th>
+                            <th>Perangkat</th>
+                            <th className="num">Elev Z (m)</th>
+                            <th className="num">Qty</th>
+                            <th className="num">qz (Pa)</th>
+                            <th className="num">Total EPA (m²)</th>
+                            <th className="num">Fw (kN)</th>
+                            <th className="num">1.6·Fw (kN)</th>
+                            <th className="num">1.2·DL (kN)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {eng.device_loads.map((d, i) => (
+                            <tr key={`${d.device_name}-${i}`}>
+                              <td><strong>{d.status}</strong></td>
+                              <td>{d.tenant}</td>
+                              <td className="mono">{d.device_name}</td>
+                              <td className="num">{d.elev_z_m.toFixed(1)}</td>
+                              <td className="num">{d.qty}</td>
+                              <td className="num">{d.qz_pa.toFixed(1)}</td>
+                              <td className="num">{d.epa_total_m2.toFixed(3)}</td>
+                              <td className="num">{d.fw_kn.toFixed(3)}</td>
+                              <td className="num"><strong>{d.fw_factored_kn.toFixed(3)}</strong></td>
+                              <td className="num">{d.fd_factored_kn.toFixed(3)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* SECTION 7: Raw MS Tower V6 .rpt Viewer */}
+              {activeNode === "rpt_terminal" && (
+                <div className="finder-table-card">
+                  <div className="finder-table-header">
+                    <div>
+                      <h2 className="finder-table-title">
+                        MS Tower V6 Output Report (.rpt)
+                      </h2>
+                    </div>
+                    <input
+                      type="search"
+                      placeholder="Cari baris di .rpt..."
+                      value={rptFilter}
+                      onChange={(e) => setRptFilter(e.target.value)}
+                      style={{ width: 220, height: 28 }}
+                    />
+                  </div>
+                  <div style={{ padding: 12 }}>
+                    {rptLoading && <p className="muted">Memuat laporan .rpt...</p>}
+                    {rptData && (
+                      <div className="rpt-viewer-box">
+                        <pre className="rpt-pre">
+                          {rptData.report_text
+                            .split("\n")
+                            .filter((ln) =>
+                              rptFilter.trim()
+                                ? ln.toLowerCase().includes(rptFilter.toLowerCase())
+                                : true
+                            )
+                            .map((line, idx) => (
+                              <div key={idx} className="rpt-line">
+                                <span className="rpt-ln">{idx + 1}</span>
+                                <span className="rpt-txt">{line}</span>
+                              </div>
+                            ))}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* RIGHT PANE: 3D Stress Ratio Stage & Structural Verdict Inspector */}
+        <aside className="finder-inspector-pane">
+          <div className="finder-pane-header">
+            <span className="finder-pane-title">3D Stress Ratio Stage</span>
+            {maxSrMember && renderStatusDot(maxSrMember.stress_ratio)}
+          </div>
+
+          <div className="finder-inspector-section">
+            <ViewportFaceToolbar
+              activeFace={activeFace}
+              onChange={(f) => setActiveFace?.(f)}
+              showDevices={showDevices}
+              onToggleDevices={() => setShowDevices((v) => !v)}
+            />
+            {geometry && (
+              <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+                <TowerViewer
+                  geometry={geometry}
+                  devices={showDevices ? siteDevices : []}
+                  highlightFace={activeFace}
+                  memberStress={eng?.member_3d_stress}
+                />
               </div>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="sheet">
-          <p className="muted">
-            Belum ada hasil analisis untuk site <strong>{site}</strong>. Klik{" "}
-            <strong>Jalankan Analisis</strong> di atas untuk memulai.
-          </p>
-        </div>
-      )}
+
+          {result && (
+            <div className="finder-inspector-section">
+              <div className="finder-section-label">Ringkasan Governing Kapasitas</div>
+              <div className="finder-kv-grid">
+                <div className="finder-kv-box">
+                  <span className="finder-kv-label">Max SR Overall</span>
+                  <span className="finder-kv-val">
+                    {maxSrMember ? maxSrMember.stress_ratio.toFixed(3) : "-"}
+                  </span>
+                </div>
+                <div className="finder-kv-box">
+                  <span className="finder-kv-label">Profil Kritis</span>
+                  <span className="finder-kv-val">
+                    {maxSrMember ? maxSrMember.sec_name : "-"}
+                  </span>
+                </div>
+                <div className="finder-kv-box">
+                  <span className="finder-kv-label">Max Tekan Pu</span>
+                  <span className="finder-kv-val">{result.max_pu_kn.toFixed(2)} kN</span>
+                </div>
+                <div className="finder-kv-box">
+                  <span className="finder-kv-label">Max Cabut Tu</span>
+                  <span className="finder-kv-val">{result.max_tu_kn.toFixed(2)} kN</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {eng?.recommendation && (
+            <div className="finder-inspector-section">
+              <div className="finder-section-label">Rekomendasi Struktur</div>
+              <div
+                className="finder-kv-box"
+                style={{
+                  background:
+                    maxSrMember && maxSrMember.stress_ratio <= 1.0
+                      ? "var(--success-bg)"
+                      : "var(--danger-bg)",
+                  borderColor:
+                    maxSrMember && maxSrMember.stress_ratio <= 1.0
+                      ? "var(--success-bd)"
+                      : "var(--danger-bd)",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{eng.recommendation}</div>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

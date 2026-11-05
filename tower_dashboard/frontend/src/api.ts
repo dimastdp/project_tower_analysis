@@ -7,6 +7,8 @@ import type {
   LibraryDeviceInput,
   MsTowerReportResult,
   PreflightResult,
+  SdaReportData,
+  SdaReportSummaryItem,
   SiteDevice,
   SiteDeviceInput,
   Tower,
@@ -92,6 +94,10 @@ export const api = {
       typeof params === "number" ? { wind_speed_ms: params } : params;
     return request<AnalysisResult>(`/sites/${enc(site)}/analysis`, json(body));
   },
+  runCompareMstAnalysis: (site: string, params: Omit<AnalysisParams, "analysis_mode">) =>
+    request<AnalysisResult>(`/sites/${enc(site)}/analysis/compare-mst`, json({ ...params, analysis_mode: "benchmark_calibration", auto_apply_preflight: true })),
+  runOpenSeesStandalone: (site: string, params: Omit<AnalysisParams, "analysis_mode">) =>
+    request<AnalysisResult>(`/sites/${enc(site)}/analysis/opensees`, json({ ...params, analysis_mode: "pure_opensees" })),
   latestAnalysis: (site: string) =>
     request<AnalysisResult>(`/sites/${enc(site)}/analysis/latest`).catch((e: ApiError) => {
       if (e.status === 404 && e.message.startsWith("No analysis")) return null;
@@ -100,5 +106,23 @@ export const api = {
   analysisReport: (site: string) =>
     request<MsTowerReportResult>(`/sites/${enc(site)}/analysis/report`),
   exportExcelUrl: (site: string) => `/api/sites/${enc(site)}/analysis/export/excel`,
+  exportOpenSeesExcelUrl: (site: string) => `/api/sites/${enc(site)}/analysis/export/opensees-excel`,
   exportRptUrl: (site: string) => `/api/sites/${enc(site)}/analysis/export/rpt`,
+  exportMstUrl: (site: string) => `/api/sites/${enc(site)}/export/mst`,
+  exportBundleRarUrl: (site: string) => `/api/sites/${enc(site)}/export/bundle-rar`,
+  exportProjectLibUrl: (site: string) => `/api/sites/${enc(site)}/export/project-lib`,
+
+  // SDA PDF Extractor (v2.3.0)
+  uploadSdaPdf: (file: File, runOpensees = false) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return request<SdaReportData>(`/sda/upload-pdf?run_opensees=${runOpensees}`, {
+      method: "POST",
+      body: fd,
+    });
+  },
+  listSdaReports: () => request<SdaReportSummaryItem[]>("/sda/reports"),
+  getSdaReport: (reportId: number) => request<SdaReportData>(`/sda/reports/${reportId}`),
+  downloadSdaZipUrl: (reportId: number) => `/api/sda/${reportId}/download-mst-zip`,
+  exportSdaExcelUrl: (reportId: number) => `/api/sda/${reportId}/export-excel`,
 };

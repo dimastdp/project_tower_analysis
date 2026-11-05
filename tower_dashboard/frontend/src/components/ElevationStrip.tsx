@@ -112,17 +112,31 @@ export default function ElevationStrip({
           <line key={i} x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} className="elev-brace" />
         ))}
 
-        {/* Devices placed on this face with physical .lib dimensions */}
+        {/* Devices placed on this face with physical .lib dimensions & translucent overlay */}
         {faceDevices.map((d, i) => {
           const yCenter = yOf(d.elev_z_m);
           const hw = halfAt(d.elev_z_m);
           const sideSign = i % 2 === 0 ? 1 : -1;
           const xMount = cx + (compact ? hw + 6 : hw + 8 + (i % 3) * 7);
-          const hPx = Math.max(7, Math.min(34, (d.length_m ?? 0.8) * pxPerMeterY * 1.15));
-          const wPx = Math.max(6, Math.min(18, (d.width_m ?? 0.35) * pxPerMeterY * 1.6));
-          const isDish = (d.shape_type ?? "").includes("SH") || d.device_name.startsWith("SH") || d.device_name.startsWith("MW");
+          const lenM = Math.max(d.length_m ?? d.dim_m ?? 0.8, 0.15);
+          const widM = Math.max(d.width_m ?? 0.35, 0.12);
+          const depM = Math.max(d.depth_m ?? 0.18, 0.10);
+          const hPx = Math.max(6, Math.min(48, lenM * pxPerMeterY * 1.15));
+          const wPx = Math.max(5, Math.min(36, widM * pxPerMeterY * 1.35));
+          const shape = (d.shape_type ?? "BOX").toUpperCase();
+          const isDish =
+            shape.includes("SH") ||
+            shape === "STD" ||
+            shape === "RAD" ||
+            d.device_name.toUpperCase().startsWith("SH") ||
+            d.device_name.toUpperCase().startsWith("MW");
+          const isCyl = shape === "CYL" && !isDish;
           const color = !d.in_library ? "#dc2626" : d.status === "PROPOSED" ? "#d97706" : "#0d9488";
-          const fill = !d.in_library ? "rgba(220,38,38,0.18)" : d.status === "PROPOSED" ? "rgba(245,158,11,0.22)" : "rgba(13,148,136,0.20)";
+          const fill = !d.in_library
+            ? "rgba(220, 38, 38, 0.24)"
+            : d.status === "PROPOSED"
+            ? "rgba(245, 158, 11, 0.26)"
+            : "rgba(13, 148, 136, 0.24)";
 
           // Spread label Y slightly to avoid overlap at identical elevations
           const labelY = yCenter + ((i % 3) - 1) * (compact ? 7 : 9);
@@ -131,43 +145,55 @@ export default function ElevationStrip({
           return (
             <g key={d.id} className="elev-dev-group">
               <title>
-                {`[${meta.label}] ${d.device_name} (${d.status}) · ${d.tenant}\n` +
+                {`[${meta.label}] ${d.device_name} (${d.status} · ${shape}) · ${d.tenant}\n` +
                   `Z = ${d.elev_z_m.toFixed(2)} m · Qty ${d.qty}\n` +
-                  `Dimensi .lib: ${(d.length_m ?? 0).toFixed(2)} × ${(d.width_m ?? 0).toFixed(2)} × ${(d.depth_m ?? 0).toFixed(2)} m`}
+                  `Dimensi .lib: T=${lenM.toFixed(2)} × L=${widM.toFixed(2)} × D=${depM.toFixed(2)} m\n` +
+                  `Af=${(d.af_m2 ?? lenM * widM).toFixed(3)} m² · EPA=${(d.epa_m2 ?? 0).toFixed(3)} m²`}
               </title>
               {/* Bracket line from leg to antenna */}
-              <line x1={cx + hw * (sideSign > 0 ? 1 : 0.6)} y1={yCenter} x2={xMount} y2={yCenter} stroke={color} strokeWidth={1.3} />
+              <line x1={cx + hw * (sideSign > 0 ? 1 : 0.6)} y1={yCenter} x2={xMount} y2={yCenter} stroke={color} strokeWidth={1.3} strokeOpacity={0.85} />
 
-              {/* Scaled .lib physical shape */}
+              {/* Scaled .lib physical shape with translucent overlay */}
               {isDish ? (
-                <circle
-                  cx={xMount}
-                  cy={yCenter}
-                  r={Math.max(4.5, hPx / 2)}
-                  fill={fill}
-                  stroke={color}
-                  strokeWidth={1.6}
-                />
+                <g>
+                  <circle
+                    cx={xMount}
+                    cy={yCenter}
+                    r={Math.max(4.5, hPx / 2)}
+                    fill={fill}
+                    stroke={color}
+                    strokeWidth={1.5}
+                  />
+                  <circle
+                    cx={xMount}
+                    cy={yCenter}
+                    r={Math.max(1.8, hPx / 5)}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={0.9}
+                    strokeOpacity={0.7}
+                  />
+                </g>
               ) : (
                 <rect
                   x={xMount - wPx / 2}
                   y={yCenter - hPx / 2}
                   width={wPx}
                   height={hPx}
-                  rx={1.5}
+                  rx={isCyl ? wPx / 2 : 1.5}
                   fill={fill}
                   stroke={color}
-                  strokeWidth={1.5}
+                  strokeWidth={1.4}
                   strokeDasharray={d.in_library ? undefined : "2,1"}
                 />
               )}
 
               {/* Callout leader & label */}
-              <line x1={xMount + wPx / 2 + 1} y1={yCenter} x2={labelX - 3} y2={labelY} stroke={color} strokeWidth={0.8} strokeOpacity={0.7} />
+              <line x1={xMount + wPx / 2 + 1} y1={yCenter} x2={labelX - 3} y2={labelY} stroke={color} strokeWidth={0.8} strokeOpacity={0.65} />
               <text x={labelX} y={labelY + 3} fill={color} className="elev-dev-label">
                 {compact
                   ? `${d.device_name} (${d.elev_z_m.toFixed(0)}m)`
-                  : `${d.device_name} @${d.elev_z_m.toFixed(1)}m (${(d.length_m ?? 0).toFixed(2)}m)`}
+                  : `${d.device_name} @${d.elev_z_m.toFixed(1)}m (${lenM.toFixed(2)}×${widM.toFixed(2)}m)`}
               </text>
             </g>
           );

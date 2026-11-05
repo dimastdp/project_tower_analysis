@@ -84,7 +84,8 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     max_tu_kn     REAL,
     max_vu_kn     REAL,
     created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
-    elem_axial_json TEXT
+    elem_axial_json TEXT,
+    analysis_mode TEXT DEFAULT 'pure_opensees'
 );
 
 CREATE TABLE IF NOT EXISTS analysis_reactions (
@@ -94,6 +95,25 @@ CREATE TABLE IF NOT EXISTS analysis_reactions (
     pu_kn REAL, tu_kn REAL, vu_kn REAL
 );
 CREATE INDEX IF NOT EXISTS idx_reactions_run ON analysis_reactions(run_id);
+
+CREATE TABLE IF NOT EXISTS sda_reports (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename          TEXT NOT NULL,
+    site_id           TEXT,
+    site_name         TEXT,
+    project_id        TEXT,
+    regional          TEXT,
+    lat               REAL,
+    lon               REAL,
+    tower_type        TEXT,
+    tower_height_m    REAL,
+    building_height_m REAL,
+    wind_design_kph   REAL,
+    wind_oper_kph     REAL,
+    extracted_json    TEXT,
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sda_site ON sda_reports(site_id);
 """
 
 
@@ -103,6 +123,10 @@ def init_db() -> None:
         conn.executescript(SCHEMA)
         try:
             conn.execute("ALTER TABLE analysis_runs ADD COLUMN elem_axial_json TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE analysis_runs ADD COLUMN analysis_mode TEXT DEFAULT 'pure_opensees'")
         except sqlite3.OperationalError:
             pass
         conn.commit()

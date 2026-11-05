@@ -2,6 +2,8 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+*.pdf
+*.PDF
 
 # Python
 __pycache__/
@@ -52,4 +54,6 @@ tower_dashboard/frontend/.vite/
 .idea/
 *.sublime-project
 *.sublime-workspace
+.antigravity/
+antigravity-gemini-skills/
 

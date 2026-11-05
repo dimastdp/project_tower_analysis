@@ -8,8 +8,72 @@ Format berkas ini mengacu pada [Keep a Changelog](https://keepachangelog.com/id/
 
 ## [Unreleased]
 ### Planned
-- Export laporan analisis struktural format PDF profesional dengan ringkasan 3-parameter MS Tower.
 - Integrasi perkuatan member (*reinforcement*) otomatis pada member berstatus overstress ($SR > 1.0$).
+
+---
+
+## [2.4.0] - 2026-11-05
+### Added
+- **Refactoring 3-Pane macOS Finder Layout & Apple HIG Minimalist UI**:
+  - Menerapkan desain antarmuka 3-pane ala macOS Finder (`TowersPage`, `InventoryPage`, `AnalysisPage`):
+    - **Left Pane**: Direktori pohon berkas virtual (`.mst`, `.td`, `.twr`, `.rpt`) dan folder inventori berbasis status (`EXISTING`, `PROPOSED`, `Missing .lib`) serta sektor menara (Face A–D).
+    - **Center Pane**: Tabel analisa struktur berkepadatan tinggi dengan *semantic status dots* (`OK`, `WARNING`, `OVERSTRESS`) dan Dual-Action Bar (**Tombol A** & **Tombol B**).
+    - **Right Pane**: Kanvas 3D CAD `TowerViewer` dengan `ViewportFaceToolbar`, blueprint elevasi 4 sisi `ElevationStrip`, dan kartu inspeksi *Go/No-Go Structural Verdict*.
+- **Tombol B: Engine Mandiri OpenSeesPy & Formula Dinamis Excel (TIA-222-G Sec 4.5)**:
+  - Endpoint controller baru `POST /api/sites/{site}/analysis/opensees` (Tombol B: Analisa OpenSeesPy Saja) dan `POST /api/sites/{site}/analysis/compare-mst` (Tombol A: Cross-Validation).
+  - Generator workbook Excel `openpyxl` (`/api/sites/{site}/analysis/export/opensees-excel`) berformula dinamis:
+    - Sheet `"Load Combinations"` mencakup seluruh 42 kombinasi standar (*Cases 100–3140*).
+    - Sheet `"Member Check"` memuat formula Excel hidup untuk `VLOOKUP` kasus penentu, kelangsingan $=L_{eff}/r_{min}$, kurva eksentrisitas TIA-222-G $KL/r$, faktor tekuk lokal $Q$, tegangan Euler $F_e$, tegangan tekuk kritis $F_{cr}$, kapasitas desain $\phi P_n = 0.90 P_n$, $SR = |P_u|/\phi P_n$, dan $\Delta SR$.
+    - Sheet `"Support Reactions"` dengan resultan geser $= \sqrt{V_x^2 + V_y^2}$ dan Sheet `"Tower Rotations"` dengan evaluasi batas goyangan antena 84 km/h.
+- **Pengujian & Verifikasi**:
+  - 23 unit test backend pytest lulus 100% dan bundling frontend Vite bebas galat.
+
+---
+
+## [2.3.0] - 2026-10-30
+### Added
+- **Penyatuan Modul Unggah (.mst & PDF SDA) ke Pipeline Tunggal**:
+  - Dropzone utama pada [`TowersPage.tsx`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/frontend/src/pages/TowersPage.tsx) kini menerima berkas `.mst` (Microstran/MS-Tower) maupun `.pdf` (Laporan SDA Konsultan) dalam satu pintu upload terpadu.
+  - Saat pengguna mengunggah berkas (`.mst` atau `.pdf`), sistem secara otomatis:
+    1. Mengekstrak geometri menara, koordinat node, member, serta section profile.
+    2. Mengisi inventori perangkat antena & feeder ke database inventori site.
+    3. Langsung mengeksekusi solver FEM **OpenSeesPy** di latar belakang.
+    4. Mengarahkan antarmuka pengguna langsung ke halaman **Analisis TIA-222-G** (`/analysis`) dengan hasil kalkulasi yang sudah siap saji.
+- **Fitur Konversi & Ekspor ke .mst (Convert ke .mst)**:
+  - Dibuat fungsi [`build_mst_file()`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/parsers.py) untuk mengonversi model menara (baik yang diimpor dari PDF maupun hasil pemodelan web) menjadi berkas native `.mst` lengkap dengan blok `DAT~`, `TWR~`, dan `RPT~`.
+  - Ditambahkan endpoint `GET /api/sites/{site}/export/mst` di [`main.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/main.py).
+  - Ditambahkan tombol aksi **"Convert ke .mst"** di halaman [`AnalysisPage.tsx`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/frontend/src/pages/AnalysisPage.tsx) dan [`TowersPage.tsx`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/frontend/src/pages/TowersPage.tsx).
+- **Fitur Unggah & Ekstraksi PDF Laporan SDA Konsultan Menara**:
+  - Modul backend [`pdf_sda_extractor.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/pdf_sda_extractor.py) dengan engine PyMuPDF (`pymupdf-2.0`):
+    - **Dekoder Font PUA (Private Use Area)**: Fungsi `decode_pua_text()` yang menerjemahkan font terenkripsi blok Unicode `\uF020`–`\uF07E` hasil cetakan printer driver MStower [V6.02.002] ke karakter ASCII standar.
+    - **Pembersihan Otomatis Header/Footer Cetakan MS-Tower**: Menghapus banner nama konsultan/perusahaan, nomor halaman & waktu cetak, serta watermark MStower.
+    - **Klasifikasi Multi-Skenario**: Mengelompokkan data berdasarkan skenario `EXISTING`, `PROPOSED`, dan `STRENGTHENING` secara otomatis dari footer path dan judul pekerjaan.
+    - **Rekonstruksi File Native MS-Tower**: Mengekstrak teks utuh dan bersih untuk `.td` (geometri), `.twr` (beban & ancillaries), `.rpt` (desain member check & evaluasi rotasi), dan `.p1` (reaksi tumpuan & deformasi).
+    - **Ekstraksi Inventori Perangkat Antena & Feeder**: Regex parser untuk baris `LARGE` (aktif maupun baris komentar `$` proposed) dan `LINEAR` (feeder, kabel, tray, tangga).
+    - **Ekstraksi Resume Analisa Struktur**: Mengambil Stress Ratio maksimum (Leg, Bracing, Horiz), Slenderness $KL/r$, Deformasi Operasional (Max Sway, Max Twist, Max Disp), Reaksi Tumpuan ($P_u, T_u, V_u$), Analisis Baut Angkur (Rasio Interaksi $T/\phi_t R_n$), dan Rasio Tebal Base Plate ($t_{req}/t_{ext}$).
+    - **Pembuatan Arsip ZIP**: Method `build_zip_archive()` untuk mengemas seluruh file teks MST `.td`, `.twr`, `.rpt`, `.p1`, metadata `summary_metadata.json`, dan inventori `device_inventory.csv` ke dalam satu unduhan ZIP di memori.
+- **REST API Endpoints SDA Baru di [`main.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/main.py)**:
+  - `POST /api/sda/upload-pdf`: Menerima upload dokumen PDF laporan SDA, menjalankan ekstraksi, validasi opsional solver OpenSeesPy, dan menyimpan ke tabel database `sda_reports`.
+  - `GET /api/sda/reports`: Menampilkan daftar riwayat dokumen SDA yang telah diunggah.
+  - `GET /api/sda/reports/{report_id}`: Mengambil data JSON hasil ekstraksi lengkap per laporan.
+  - `GET /api/sda/{report_id}/download-mst-zip`: Mengunduh berkas bundel `.zip` file native MS-Tower.
+  - `GET /api/sda/{report_id}/export-excel`: Menghasilkan dan mengunduh workbook Excel (`.xlsx`) ringkasan resume SDA & komparasi multi-skenario via `build_sda_export_workbook()`.
+- **Halaman Frontend Baru [`SdaExtractorPage.tsx`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/frontend/src/pages/SdaExtractorPage.tsx) Berdesain Apple Studio**:
+  - Drag-and-drop dropzone dokumen PDF dengan feedback visual status upload & ekstraksi.
+  - Opsi *checkbox* untuk menjalankan validasi OpenSeesPy FEM solver otomatis.
+  - Riwayat dokumen SDA dengan navigasi cepat.
+  - Bento Grid kartu metrik: Stress Ratio, Slenderness $KL/r$, Serviceability (Sway & Twist), Reaksi Tumpuan, Anchor Bolt & Base Plate, dan Berat Menara.
+  - Status Rekomendasi Dinamis: Badge hijau `✓ NO NEED STRENGTHENING` vs merah `⚠ NEED STRENGTHENING`.
+  - Matriks Komparasi Multi-Skenario berdampingan (`EXISTING` vs `PROPOSED` vs `STRENGTHENING`).
+  - Tabel filter inventori perangkat antena & feeder dengan pencarian instan dan filter tenant/status.
+  - Code viewer berkas native MS-Tower (`.td`, `.twr`, `.rpt`, `.p1`) dengan tombol salin teks ke clipboard.
+  - Tombol aksi cepat: *Download MST Files (.zip)* dan *Export Excel (.xlsx)*.
+- **Dukungan Parsing File `.td` Native**:
+  - Fungsi [`parse_td_content()`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/parsers.py) dan `parse_td_twr_content()` untuk mengonversi geometri text `.td` dan beban `.twr` langsung menjadi model space-frame OpenSeesPy.
+- **Database Schema**:
+  - Tabel `sda_reports` di [`db.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/db.py) untuk menyimpan arsip metadata, filename, dan seluruh payload JSON terekstrak.
+- **Pengujian Komprehensif**:
+  - Ditambahkan unit test dekoder font PUA dan simulasi ekstraksi PDF multi-halaman pada [`test_api.py`](file:///c:/Users/tgrdi/Documents/Data_mstower/tower_dashboard/backend/tests/test_api.py). Seluruh 14 pengujian lulus 100%.
 
 ---
 

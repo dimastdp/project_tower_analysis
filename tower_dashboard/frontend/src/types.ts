@@ -63,6 +63,10 @@ export interface SiteDevice extends SiteDeviceInput {
   epa_m2: number | null;
   mass_kg?: number | null;
   shape_type?: string;
+  dim_m?: number;
+  af_m2?: number;
+  asf_m2?: number;
+  ca_factor?: number;
   length_m?: number;
   width_m?: number;
   depth_m?: number;
@@ -135,6 +139,11 @@ export interface MemberCheckRow {
   sr_mst?: number;
   status_mst?: string;
   diff_sr?: number;
+  delta_sr?: number;
+  gov_case_os?: number;
+  gov_case_mst?: number;
+  l_eff_mm?: number;
+  curve_no?: number;
   accuracy_pct?: number;
   status_match?: boolean;
 }
@@ -145,6 +154,16 @@ export interface MemberComparisonRow {
   typ: string;
   size: string;
   kl_r: number;
+  l_eff_mm?: number;
+  r_min_mm?: number;
+  b_mm?: number;
+  t_mm?: number;
+  ag_mm2?: number;
+  fy_mpa?: number;
+  e_mpa?: number;
+  curve_no?: number;
+  gov_case_os?: number;
+  gov_case_mst?: number;
   pu_opensees_kn: number;
   phi_pn_opensees_kn: number;
   sr_opensees: number;
@@ -154,6 +173,7 @@ export interface MemberComparisonRow {
   sr_mst: number;
   status_mst: string;
   diff_sr: number;
+  delta_sr?: number;
   accuracy_pct: number;
   status_match: boolean;
 }
@@ -222,8 +242,41 @@ export interface MstComparisonRow {
   note: string;
 }
 
+export interface CategorySrSummaryItem {
+  category_key: "LEG" | "BRACING" | "HORIZONTAL" | "REDUNDANT" | "OVERALL" | string;
+  category_label: string;
+  pnl: number;
+  member_id: string;
+  typ: string;
+  sec_name: string;
+  kl_r: number;
+  l_eff_mm?: number;
+  r_min_mm?: number;
+  b_mm?: number;
+  t_mm?: number;
+  ag_mm2?: number;
+  curve_no?: number;
+  gov_case_os?: number;
+  gov_case_mst?: number;
+  pu_opensees_kn: number;
+  phi_pn_opensees_kn: number;
+  sr_opensees: number;
+  status_opensees: string;
+  pu_mst_kn: number;
+  phi_pn_mst_kn: number;
+  sr_mst: number;
+  status_mst: string;
+  diff_sr: number;
+  delta_sr?: number;
+  accuracy_pct: number;
+}
+
 export interface TwistSwaySummary {
   operational_wind_kmh: number;
+  operational_wind_ms?: number;
+  load_combination?: string;
+  gov_case?: number;
+  gov_service_case?: number;
   sway_deg: number;
   mst_sway_deg: number;
   twist_deg: number;
@@ -234,6 +287,31 @@ export interface TwistSwaySummary {
   mst_disp_z_mm: number;
   sway_limit_deg: number;
   status: string;
+}
+
+export interface LoadCombinationRow {
+  case_id: number;
+  name: string;
+  formula: string;
+  category: string;
+  dead_factor: number;
+  wind_factor: number;
+  wind_dir_deg: number | null;
+  note: string;
+}
+
+export interface ReactionDetailRow {
+  node_label: string;
+  gov_case_comp: number;
+  gov_case_uplift: number;
+  pu_kn: number;
+  tu_kn: number;
+  vx_kn: number;
+  vy_kn: number;
+  vu_kn: number;
+  pu_mst_kn?: number;
+  tu_mst_kn?: number;
+  vu_mst_kn?: number;
 }
 
 export interface PreflightMissingDevice {
@@ -277,7 +355,12 @@ export interface PreflightResult {
 }
 
 export interface EngineeringReport {
-  wind_summary: WindSummary & { z_base_m?: number };
+  analysis_mode?: "pure_opensees" | "benchmark_calibration" | string;
+  mode_label?: string;
+  wind_summary: WindSummary & { z_base_m?: number; operational_wind_kmh?: number; operational_wind_ms?: number };
+  load_combinations?: LoadCombinationRow[];
+  reaction_details?: ReactionDetailRow[];
+  category_sr_summary?: CategorySrSummaryItem[];
   twist_sway_disp?: TwistSwaySummary;
   device_loads: DeviceLoadRow[];
   member_checks: MemberCheckRow[];
@@ -294,6 +377,8 @@ export interface AnalysisParams {
   exposure?: "B" | "C" | "D";
   struct_class?: 1 | 2 | 3;
   kzt?: number;
+  analysis_mode?: "pure_opensees" | "benchmark_calibration";
+  auto_apply_preflight?: boolean;
 }
 
 export interface AnalysisResult {
@@ -304,6 +389,7 @@ export interface AnalysisResult {
   max_pu_kn: number;
   max_tu_kn: number;
   max_vu_kn: number;
+  analysis_mode?: "pure_opensees" | "benchmark_calibration";
   reactions: Reaction[];
   warnings: string[];
   engineering?: EngineeringReport;
@@ -329,4 +415,98 @@ export interface MsTowerReportResult {
   displacement_cases_count: number;
   mass_total_kg: number;
   report_text: string;
+}
+
+export interface SdaSiteMetadata {
+  site_id: string | null;
+  site_name: string | null;
+  project_id: string | null;
+  regional: string | null;
+  lat: number | null;
+  lon: number | null;
+  tower_type: string | null;
+  tower_height_m: number | null;
+  building_height_m: number | null;
+  wind_design_kph: number | null;
+  wind_oper_kph: number | null;
+}
+
+export interface SdaDeviceItem {
+  id: string;
+  type?: string;
+  category?: string;
+  elevation_m: number;
+  face?: string;
+  azimuth_deg?: number;
+  mass_kg?: number;
+  tenant?: string;
+  status: "EXISTING" | "PROPOSED";
+  commented?: boolean;
+  lib?: string;
+  note?: string;
+}
+
+export interface SdaScenarioSummary {
+  stress_ratios: Record<string, number | null>;
+  slenderness: Record<string, number | null>;
+  displacement_m: number | null;
+  twist_deg: number | null;
+  sway_deg: number | null;
+  total_mass_kg: number | null;
+  reactions: {
+    max_comp_kn: number | null;
+    max_uplift_kn: number | null;
+    max_shear_kn: number | null;
+  };
+  anchor_baseplate: {
+    uplift_tu_kn: number | null;
+    shear_vu_kn: number | null;
+    moment_mu_knm: number | null;
+    anchor_qty: number | null;
+    anchor_dia_mm: number | null;
+    anchor_interaction_ratio: number | null;
+    anchor_tension_ratio: number | null;
+    baseplate_dim_mm: number | null;
+    baseplate_thick_ext_mm: number | null;
+    baseplate_thick_req_mm: number | null;
+    baseplate_ratio: number | null;
+  };
+  status: "NO NEED STRENGTHENING" | "NEED STRENGTHENING";
+}
+
+export interface SdaScenarioData {
+  mst_files: {
+    td: string;
+    twr: string;
+    rpt: string;
+    p1: string;
+  };
+  devices: {
+    antennas: SdaDeviceItem[];
+    linear: SdaDeviceItem[];
+  };
+  summary: SdaScenarioSummary;
+  member_checks?: any[];
+  fem_analysis?: any;
+  fem_analysis_error?: string;
+}
+
+export interface SdaReportData {
+  report_id?: number;
+  filename: string;
+  page_count: number;
+  site_metadata: SdaSiteMetadata;
+  scenarios: Record<string, SdaScenarioData>;
+}
+
+export interface SdaReportSummaryItem {
+  id: number;
+  filename: string;
+  site_id: string | null;
+  site_name: string | null;
+  project_id: string | null;
+  regional: string | null;
+  tower_type: string | null;
+  tower_height_m: number | null;
+  created_at: string;
 }

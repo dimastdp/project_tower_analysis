@@ -1,554 +1,730 @@
-import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, ApiError } from "../api";
 import { useSite } from "../SiteContext";
+import type {
+  DeviceStatus,
+  SiteDevice,
+  TowerFace,
+} from "../types";
 import ElevationStrip from "../components/ElevationStrip";
-import { useToast } from "../components/Toast";
-import type { DeviceStatus, SiteDevice, TowerFace } from "../types";
 
-const TENANTS = ["TELKOMSEL", "IOH", "XL", "XLSMART", "SMARTFREN", "SURGE"];
+function inferDeviceFace(d: SiteDevice, idx: number): TowerFace {
+  if (d.face && ["A", "B", "C", "D"].includes(d.face)) return d.face;
+  const txt = `${d.tenant} ${d.device_name} ${d.mounting_name ?? ""}`.toUpperCase();
+  if (/\bFACE[\s_-]*A\b|\bSEC[\s_-]*1\b|\bS1\b|\bLEG[\s_-]*A\b/.test(txt)) return "A";
+  if (/\bFACE[\s_-]*B\b|\bSEC[\s_-]*2\b|\bS2\b|\bLEG[\s_-]*B\b/.test(txt)) return "B";
+  if (/\bFACE[\s_-]*C\b|\bSEC[\s_-]*3\b|\bS3\b|\bLEG[\s_-]*C\b/.test(txt)) return "C";
+  if (/\bFACE[\s_-]*D\b|\bSEC[\s_-]*4\b|\bS4\b|\bLEG[\s_-]*D\b/.test(txt)) return "D";
+  const faces: TowerFace[] = ["A", "B", "C", "D"];
+  return faces[idx % 4];
+}
+
+const FACE_META: Record<TowerFace, { title: string; az: string }> = {
+  A: { title: "Face A", az: "0° (Utara)" },
+  B: { title: "Face B", az: "90° (Timur)" },
+  C: { title: "Face C", az: "180° (Selatan)" },
+  D: { title: "Face D", az: "270° (Barat)" },
+};
 
 export default function InventoryPage() {
   const qc = useQueryClient();
-  const { site } = useSite();
-  const toast = useToast();
+  const { site: selectedSite, setSite: onSelectSite } = useSite();
 
-  const [status, setStatus] = useState<DeviceStatus>("EXISTING");
-  const [tenant, setTenant] = useState(TENANTS[0]);
-  const [deviceName, setDeviceName] = useState("");
-  const [mounting, setMounting] = useState("LEG A");
-  const [elev, setElev] = useState("20");
-  const [qty, setQty] = useState("1");
-  const [faceFilter, setFaceFilter] = useState<TowerFace | "ALL">("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "EXISTING" | "PROPOSED" | "MISSING">("ALL");
-  const [searchQ, setSearchQ] = useState("");
+  const towersQuery = useQuery({ queryKey: ["towers"], queryFn: api.listTowers });
+  const towers = towersQuery.data ?? [];
+
+  const catalogQuery = useQuery({
+    queryKey: ["library", ""],
+    queryFn: () => api.listDevices(""),
+  });
+  const catalog = catalogQuery.data ?? [];
+
+  const [items, setItems] = useState<SiteDevice[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [busyMsg, setBusyMsg] = useState<string | null>(null);
+
+  // Finder folder navigation state
+  const [statusFilter, setStatusFilter] = useState<"ALL" | DeviceStatus | "MISSING">("ALL");
+  const [faceFilter, setFaceFilter] = useState<"ALL" | TowerFace>("ALL");
+  const [tenantFilter, setTenantFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Quick-register missing device into MTEL.lib
-  const [regDev, setRegDev] = useState<SiteDevice | null>(null);
-  const [regShape, setRegShape] = useState("BOX");
-  const [regDim, setRegDim] = useState("1.50");
-  const [regMass, setRegMass] = useState("25.0");
-  const [regAf, setRegAf] = useState("0.45");
-  const [regAsf, setRegAsf] = useState("0.20");
+  // Add device form state
+  const [status, setStatus] = useState<DeviceStatus>("EXISTING");
+  const [tenant, setTenant] = useState("TSEL");
+  const [deviceName, setDeviceName] = useState("");
+  const [mountingName, setMountingName] = useState("SM-1");
+  const [elevZ, setElevZ] = useState("65");
+  const [qty, setQty] = useState("1");
 
-  const towers = useQuery({ queryKey: ["towers"], queryFn: api.listTowers });
-  const activeTower = towers.data?.find((t) => t.site_name === site);
-
-  const inventory = useQuery({
-    queryKey: ["inventory", site],
-    queryFn: () => api.listSiteDevices(site!),
-    enabled: !!site,
-  });
-  const names = useQuery({ queryKey: ["library-names"], queryFn: () => api.listDevices("") });
-
-  const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["inventory", site] });
-    qc.invalidateQueries({ queryKey: ["site-devices", site] });
-    qc.invalidateQueries({ queryKey: ["library"] });
-    qc.invalidateQueries({ queryKey: ["library-names"] });
+  const reload = () => {
+    if (!selectedSite) {
+      setItems([]);
+      return;
+    }
+    setErr(null);
+    api
+      .listSiteDevices(selectedSite)
+      .then((list) => {
+        setItems(list);
+        qc.invalidateQueries({ queryKey: ["inventory", selectedSite] });
+      })
+      .catch((e: ApiError) => setErr(e.message));
   };
 
-  const add = useMutation({
-    mutationFn: () =>
-      api.addSiteDevice(site!, {
-        status,
-        tenant,
-        device_name: deviceName.trim(),
-        mounting_name: mounting.trim() || null,
-        elev_z_m: Number(elev),
-        qty: Number(qty),
-      }),
-    onSuccess: () => {
-      toast(`Added ${deviceName.trim()} (${status}) to ${site}`);
-      setDeviceName("");
-      invalidateAll();
-    },
-  });
+  useEffect(reload, [selectedSite]);
 
-  const remove = useMutation({
-    mutationFn: (id: number) => api.deleteSiteDevice(site!, id),
-    onSuccess: () => {
-      toast("Removed device from inventory");
-      invalidateAll();
-    },
-  });
+  const activeTower = useMemo(
+    () => towers.find((t) => t.site_name === selectedSite) ?? null,
+    [towers, selectedSite]
+  );
 
-  const registerInLib = useMutation({
-    mutationFn: () =>
-      api.upsertLibraryDevice({
-        category: regDev?.tenant || "CUSTOM",
-        device_name: regDev!.device_name,
-        shape_type: regShape,
-        dim_m: Number(regDim),
-        mass_kg: Number(regMass),
-        af_m2: Number(regAf),
-        asf_m2: Number(regAsf),
-        remark: `Added from ${site} inventory`,
-      }),
-    onSuccess: (saved) => {
-      toast(`Registered ${saved.device_name} in MTEL.lib (EPA ${saved.epa_m2.toFixed(3)} m²)`);
-      setRegDev(null);
-      invalidateAll();
-    },
-  });
+  const towerHeight = useMemo(() => {
+    if (activeTower && activeTower.height_m > 1) return Math.ceil(activeTower.height_m);
+    const maxDev = items.reduce((m, d) => Math.max(m, d.elev_z_m), 0);
+    return Math.max(40, Math.ceil((maxDev + 5) / 5) * 5);
+  }, [activeTower, items]);
 
-  const applySuggestion = useMutation({
-    mutationFn: (args: { id: number; target: string; mode: "replace" | "clone_to_lib" }) =>
-      api.applyDeviceSuggestion(site!, args.id, args.target, args.mode),
-    onSuccess: (res) => {
-      if (res.mode === "clone_to_lib") {
-        toast(`Terdaftar "${res.device_name}" ke MTEL.lib berdasarkan profil ${res.based_on}`);
-      } else {
-        toast(`Diganti "${res.old_name}" → "${res.new_name}" pada site ${site}`);
+  const itemsWithFace = useMemo(
+    () => items.map((d, i) => ({ ...d, face: inferDeviceFace(d, i) })),
+    [items]
+  );
+
+  const missingDevices = useMemo(
+    () => itemsWithFace.filter((d) => !d.in_library),
+    [itemsWithFace]
+  );
+
+  const tenantsList = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const d of itemsWithFace) {
+      const t = (d.tenant || "UNKNOWN").toUpperCase();
+      map.set(t, (map.get(t) ?? 0) + d.qty);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [itemsWithFace]);
+
+  const filteredItems = useMemo(() => {
+    return itemsWithFace.filter((d) => {
+      if (statusFilter === "EXISTING" && d.status !== "EXISTING") return false;
+      if (statusFilter === "PROPOSED" && d.status !== "PROPOSED") return false;
+      if (statusFilter === "MISSING" && d.in_library) return false;
+      if (faceFilter !== "ALL" && d.face !== faceFilter) return false;
+      if (tenantFilter !== "ALL" && (d.tenant || "").toUpperCase() !== tenantFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const hay = `${d.tenant} ${d.device_name} ${d.mounting_name ?? ""} ${d.face}`.toLowerCase();
+        if (!hay.includes(q)) return false;
       }
-      invalidateAll();
-    },
-  });
+      return true;
+    });
+  }, [itemsWithFace, statusFilter, faceFilter, tenantFilter, searchQuery]);
 
-  if (!site) {
-    return (
-      <div className="empty card">
-        <p>Select or upload a tower first.</p>
-        <Link to="/towers" className="btn primary">Go to Towers</Link>
-      </div>
-    );
-  }
+  const summaryMetrics = useMemo(() => {
+    let totalUnits = 0;
+    let totalEpa = 0;
+    let totalMass = 0;
+    let existingCount = 0;
+    let proposedCount = 0;
+    for (const d of itemsWithFace) {
+      totalUnits += d.qty;
+      if (d.status === "EXISTING") existingCount += d.qty;
+      else proposedCount += d.qty;
+      if (d.epa_m2 != null) totalEpa += d.epa_m2 * d.qty;
+      if (d.mass_kg != null) totalMass += d.mass_kg * d.qty;
+    }
+    return { totalUnits, totalEpa, totalMass, existingCount, proposedCount };
+  }, [itemsWithFace]);
 
-  const onSubmit = (e: FormEvent) => {
+  const mountingDevices = useMemo(
+    () => catalog.filter((c) => c.category === "MOUNTING"),
+    [catalog]
+  );
+
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!deviceName.trim()) return;
-    add.mutate();
+    if (!selectedSite) return;
+    setErr(null);
+    try {
+      await api.addSiteDevice(selectedSite, {
+        status,
+        tenant: tenant.trim(),
+        device_name: deviceName.trim(),
+        mounting_name: mountingName.trim() || null,
+        elev_z_m: Number(elevZ),
+        qty: Number(qty),
+      });
+      setDeviceName("");
+      reload();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : String(ex));
+    }
   };
-  const error = (add.error ?? remove.error ?? registerInLib.error ?? applySuggestion.error ?? inventory.error) as Error | null;
-  const rows = inventory.data ?? [];
-  const filteredRows = rows.filter((r) => {
-    if (faceFilter !== "ALL" && (r.face ?? "A") !== faceFilter) return false;
-    if (statusFilter === "EXISTING" && r.status !== "EXISTING") return false;
-    if (statusFilter === "PROPOSED" && r.status !== "PROPOSED") return false;
-    if (statusFilter === "MISSING" && r.in_library) return false;
-    if (searchQ.trim()) {
-      const q = searchQ.toLowerCase();
-      return (
-        r.device_name.toLowerCase().includes(q) ||
-        r.tenant.toLowerCase().includes(q) ||
-        (r.mounting_name ?? "").toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-  const totalEpa = rows.reduce((acc, r) => acc + (r.epa_m2 ?? 0) * r.qty, 0);
-  const existingCount = rows.filter((r) => r.status === "EXISTING").length;
-  const proposedCount = rows.filter((r) => r.status === "PROPOSED").length;
-  const missingCount = rows.filter((r) => !r.in_library).length;
 
-  // Deduplicate missing devices by device_name for the Smart Suggestion banner
-  const missingByName = new Map<string, SiteDevice>();
-  for (const r of rows) {
-    if (!r.in_library && !missingByName.has(r.device_name)) {
-      missingByName.set(r.device_name, r);
+  const handleDelete = async (id: number) => {
+    if (!selectedSite) return;
+    setErr(null);
+    try {
+      await api.deleteSiteDevice(selectedSite, id);
+      reload();
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : String(ex));
     }
-  }
-  const missingDistinct = Array.from(missingByName.values());
+  };
+
+  const handleApplySuggestion = async (
+    devId: number,
+    targetDeviceName: string,
+    mode: "replace" | "clone_to_lib"
+  ) => {
+    if (!selectedSite) return;
+    setErr(null);
+    setBusyMsg("Menyelaraskan referensi perangkat ke MTEL.lib...");
+    try {
+      await api.applyDeviceSuggestion(selectedSite, devId, targetDeviceName, mode);
+      reload();
+      qc.invalidateQueries({ queryKey: ["library"] });
+    } catch (ex) {
+      setErr(ex instanceof ApiError ? ex.message : String(ex));
+    } finally {
+      setBusyMsg(null);
+    }
+  };
+
+  const activeFolderLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (statusFilter === "ALL") parts.push("All_Inventory.twr");
+    else if (statusFilter === "EXISTING") parts.push("Status/EXISTING.twr");
+    else if (statusFilter === "PROPOSED") parts.push("Status/PROPOSED.twr");
+    else if (statusFilter === "MISSING") parts.push("Status/Unmapped_Lib.err");
+    if (faceFilter !== "ALL") parts.push(`Face_${faceFilter}`);
+    if (tenantFilter !== "ALL") parts.push(`Tenant_${tenantFilter}`);
+    return parts.join(" › ");
+  }, [statusFilter, faceFilter, tenantFilter]);
 
   return (
-    <div className="analysis-split">
-      {/* LEFT PANE: 4-Sided Elevation Blueprint */}
-      {activeTower && (
-        <aside className="cad-pane">
-          <div className="pane-head">
-            <div>
-              <h2>Potongan Elevasi 4 Sisi ({activeTower.site_name})</h2>
-              <span className="muted" style={{ fontSize: 12 }}>
-                Klik tab sisi atau potongan gambar untuk memfilter tabel perangkat
+    <div className="finder-shell">
+      {/* Top macOS Finder Breadcrumb & Toolbar */}
+      <div className="finder-breadcrumb-bar">
+        <div className="finder-breadcrumb-path">
+          <span>Workspace</span>
+          <span className="finder-breadcrumb-sep">›</span>
+          <span>Ancillary Inventory</span>
+          {selectedSite && (
+            <>
+              <span className="finder-breadcrumb-sep">›</span>
+              <strong>{selectedSite}</strong>
+              <span className="finder-breadcrumb-sep">›</span>
+              <span className="mono" style={{ fontSize: 11.5, color: "var(--primary)" }}>
+                {activeFolderLabel}
               </span>
-            </div>
-          </div>
-          <div style={{ padding: "12px 14px" }}>
-            <ElevationStrip
-              heightM={activeTower.height_m}
-              topWidthM={activeTower.top_width_m}
-              baseWidthM={activeTower.bot_width_m}
-              devices={rows}
-              activeFace={faceFilter}
-              onFaceChange={setFaceFilter}
-            />
-          </div>
-        </aside>
-      )}
+            </>
+          )}
+        </div>
 
-      {/* RIGHT PANE: Clean Filterable Inventory Sheet */}
-      <div className="stack" style={{ gap: 14 }}>
-        {missingDistinct.length > 0 && (
-          <section className="card suggest-banner" role="region" aria-label="Saran perangkat mirip di MTEL.lib">
-            <div className="row between wrap-gap">
-              <div>
-                <h2 style={{ color: "var(--proposed)", margin: 0 }}>
-                  {missingDistinct.length} Tipe Perangkat Belum Terdaftar di MTEL.lib
-                </h2>
-                <p className="muted" style={{ margin: "2px 0 0", fontSize: 12 }}>
-                  Pilih kandidat terdekat di bawah ini untuk langsung mendaftarkan ke <code>MTEL.lib</code>:
-                </p>
-              </div>
-              <span className="badge warn">Perlu Konfirmasi .lib</span>
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <select
+            aria-label="Pilih site"
+            value={selectedSite ?? ""}
+            onChange={(e) => onSelectSite(e.target.value)}
+            style={{ height: 30, fontSize: 12 }}
+          >
+            {towers.length === 0 && <option value="">-- belum ada site --</option>}
+            {towers.map((t) => (
+              <option key={t.site_name} value={t.site_name}>
+                {t.site_name}
+              </option>
+            ))}
+          </select>
 
-            <div className="suggest-list">
-              {missingDistinct.map((m) => (
-                <div key={m.device_name} className="suggest-item">
-                  <div className="row between wrap-gap">
-                    <div>
-                      <span className="badge proposed">{m.status}</span>{" "}
-                      <strong className="mono">{m.device_name}</strong>{" "}
-                      <span className="muted">
-                        ({m.tenant} · Elevasi {m.elev_z_m.toFixed(1)} m · Dimensi {(m.length_m ?? 0).toFixed(3)} m)
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn quiet sm"
-                      onClick={() => {
-                        setRegDev(m);
-                        setRegDim(String(m.length_m ?? 1.5));
-                      }}
-                    >
-                      Input Manual ke .lib
-                    </button>
-                  </div>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => setShowAddForm((v) => !v)}
+          >
+            {showAddForm ? "Tutup Form" : "+ Tambah Perangkat"}
+          </button>
 
-                  {m.suggestions && m.suggestions.length > 0 ? (
-                    <div className="suggest-cards">
-                      {m.suggestions.map((s) => (
-                        <div key={s.device_name} className="suggest-chip">
-                          <div className="row between">
-                            <strong className="mono">{s.device_name}</strong>
-                            <span className="badge existing">{s.similarity_pct}% mirip</span>
-                          </div>
-                          <div className="muted mono" style={{ fontSize: 11 }}>
-                            {s.shape_type} · Dim {s.dim_m}m · {s.mass_kg}kg · EPA {s.epa_m2.toFixed(3)}m²
-                          </div>
-                          <div className="row gap-xs" style={{ marginTop: 4 }}>
-                            <button
-                              type="button"
-                              className="btn primary sm"
-                              disabled={applySuggestion.isPending}
-                              onClick={() =>
-                                applySuggestion.mutate({
-                                  id: m.id,
-                                  target: s.device_name,
-                                  mode: "clone_to_lib",
-                                })
-                              }
-                            >
-                              + Simpan {m.device_name} ke .lib
-                            </button>
-                            <button
-                              type="button"
-                              className="btn quiet sm"
-                              disabled={applySuggestion.isPending}
-                              onClick={() =>
-                                applySuggestion.mutate({
-                                  id: m.id,
-                                  target: s.device_name,
-                                  mode: "replace",
-                                })
-                              }
-                            >
-                              Ganti ke {s.device_name}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="muted">Tidak ada kandidat dekat. Gunakan tombol Input Manual ke .lib.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {regDev && (
-          <section className="card">
-            <div className="row between">
-              <h2>Daftarkan "{regDev.device_name}" ke MTEL.lib</h2>
-              <button type="button" className="btn quiet" onClick={() => setRegDev(null)}>
-                Tutup
-              </button>
-            </div>
-            <form
-              className="form-grid"
-              onSubmit={(e) => {
-                e.preventDefault();
-                registerInLib.mutate();
-              }}
+          {selectedSite && (
+            <a
+              href={api.exportProjectLibUrl(selectedSite)}
+              download
+              className="btn-link tinted sm"
             >
-              <label>
-                Shape
-                <select value={regShape} onChange={(e) => setRegShape(e.target.value)}>
-                  <option value="BOX">BOX</option>
-                  <option value="CYL">CYL</option>
-                  <option value="SH1">SH1</option>
-                  <option value="SHIELDED">SHIELDED</option>
-                </select>
-              </label>
-              <label>
-                Dim (m)
-                <input type="number" step="0.001" value={regDim} onChange={(e) => setRegDim(e.target.value)} required />
-              </label>
-              <label>
-                Mass (kg)
-                <input type="number" step="0.1" value={regMass} onChange={(e) => setRegMass(e.target.value)} required />
-              </label>
-              <label>
-                Af (m²)
-                <input type="number" step="0.001" value={regAf} onChange={(e) => setRegAf(e.target.value)} required />
-              </label>
-              <label>
-                Asf (m²)
-                <input type="number" step="0.001" value={regAsf} onChange={(e) => setRegAsf(e.target.value)} required />
-              </label>
-              <div className="form-actions">
-                <button type="submit" className="btn primary" disabled={registerInLib.isPending}>
-                  {registerInLib.isPending ? "Menyimpan…" : "Simpan ke MTEL.lib"}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
+              Export Project .lib
+            </a>
+          )}
+        </div>
+      </div>
 
-        <section className="sheet-pane" aria-busy={inventory.isLoading}>
-          <div className="pane-head">
-            <div className="row gap-sm wrap-gap">
-              <h2>Inventori Perangkat ({site})</h2>
-              <div className="seg-group" role="tablist" aria-label="Filter status perangkat">
-                <button
-                  type="button"
-                  className={`seg-btn ${statusFilter === "ALL" ? "active" : ""}`}
-                  onClick={() => setStatusFilter("ALL")}
-                >
-                  Semua ({rows.length})
-                </button>
-                <button
-                  type="button"
-                  className={`seg-btn ${statusFilter === "EXISTING" ? "active" : ""}`}
-                  onClick={() => setStatusFilter("EXISTING")}
-                >
-                  Existing ({existingCount})
-                </button>
-                <button
-                  type="button"
-                  className={`seg-btn ${statusFilter === "PROPOSED" ? "active" : ""}`}
-                  onClick={() => setStatusFilter("PROPOSED")}
-                >
-                  Proposed ({proposedCount})
-                </button>
-                {missingCount > 0 && (
-                  <button
-                    type="button"
-                    className={`seg-btn ${statusFilter === "MISSING" ? "active" : ""}`}
-                    onClick={() => setStatusFilter("MISSING")}
-                  >
-                    Belum di .lib ({missingCount})
-                  </button>
-                )}
-              </div>
+      {err && <div className="alert error">{err}</div>}
+      {busyMsg && <div className="alert">{busyMsg}</div>}
+
+      {/* 3-Pane macOS Finder Layout */}
+      <div className="finder-3pane">
+        {/* LEFT PANE: Hierarchical Inventory Folder Tree */}
+        <aside className="finder-tree-pane">
+          <div className="finder-pane-header">
+            <div className="finder-traffic-dots">
+              <span className="finder-traffic-dot red" />
+              <span className="finder-traffic-dot amber" />
+              <span className="finder-traffic-dot green" />
             </div>
+            <span className="finder-pane-title">Inventory Folders</span>
+            <span className="badge">{items.length}</span>
+          </div>
 
-            <div className="row gap-xs wrap-gap">
-              <input
-                type="search"
-                placeholder="Cari tenant / kode perangkat…"
-                value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
-                style={{ height: 30, minWidth: 190, fontSize: 12 }}
-              />
+          <div className="finder-tree-scroll">
+            {/* Search input */}
+            <input
+              type="search"
+              placeholder="Filter kode antena / tenant..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: "100%", height: 28, fontSize: 12 }}
+            />
+
+            {/* Folder Group 1: Status Hierarchy */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">Status Folders (.twr)</div>
               <button
                 type="button"
-                className={`btn sm ${showAddForm ? "active-pill" : "primary"}`}
-                onClick={() => setShowAddForm((v) => !v)}
+                className={`finder-tree-folder ${
+                  statusFilter === "ALL" && faceFilter === "ALL" && tenantFilter === "ALL"
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() => {
+                  setStatusFilter("ALL");
+                  setFaceFilter("ALL");
+                  setTenantFilter("ALL");
+                }}
               >
-                {showAddForm ? "Tutup Form" : "+ Tambah Perangkat"}
+                <div className="finder-item-main">
+                  <span>📂</span>
+                  <span className="finder-item-name">All_Devices.twr</span>
+                </div>
+                <span className="finder-item-meta">{summaryMetrics.totalUnits}u</span>
               </button>
-              <a href={api.exportLibraryUrl} download="MTEL.lib" className="btn quiet sm">
-                Export MTEL.lib
-              </a>
+
+              <button
+                type="button"
+                className={`finder-tree-item ${statusFilter === "EXISTING" ? "active" : ""}`}
+                onClick={() => setStatusFilter("EXISTING")}
+              >
+                <div className="finder-item-main">
+                  <span className="semantic-dot green" />
+                  <span className="finder-item-name">EXISTING_Equipment</span>
+                </div>
+                <span className="finder-item-meta">{summaryMetrics.existingCount}u</span>
+              </button>
+
+              <button
+                type="button"
+                className={`finder-tree-item ${statusFilter === "PROPOSED" ? "active" : ""}`}
+                onClick={() => setStatusFilter("PROPOSED")}
+              >
+                <div className="finder-item-main">
+                  <span className="semantic-dot amber" />
+                  <span className="finder-item-name">PROPOSED_Equipment</span>
+                </div>
+                <span className="finder-item-meta">{summaryMetrics.proposedCount}u</span>
+              </button>
+
+              {missingDevices.length > 0 && (
+                <button
+                  type="button"
+                  className={`finder-tree-item ${statusFilter === "MISSING" ? "active" : ""}`}
+                  onClick={() => setStatusFilter("MISSING")}
+                >
+                  <div className="finder-item-main">
+                    <span className="semantic-dot red" />
+                    <span className="finder-item-name">Missing_In_Lib.err</span>
+                  </div>
+                  <span className="finder-item-meta">{missingDevices.length}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Folder Group 2: Tower Faces (A / B / C / D) */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">Tower Sectors / Faces</div>
+              {(["ALL", "A", "B", "C", "D"] as const).map((f) => {
+                const count =
+                  f === "ALL"
+                    ? itemsWithFace.length
+                    : itemsWithFace.filter((d) => d.face === f).length;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    className={`finder-tree-item ${faceFilter === f ? "active" : ""}`}
+                    onClick={() => setFaceFilter(f)}
+                  >
+                    <div className="finder-item-main">
+                      <span>{f === "ALL" ? "🧭" : "📡"}</span>
+                      <span className="finder-item-name">
+                        {f === "ALL" ? "Semua Face (A–D)" : `${FACE_META[f].title} · ${FACE_META[f].az}`}
+                      </span>
+                    </div>
+                    <span className="finder-item-meta">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Folder Group 3: Operator / Tenant Directories */}
+            <div className="finder-section-group">
+              <div className="finder-section-label">Tenants / Operators</div>
+              <button
+                type="button"
+                className={`finder-tree-item ${tenantFilter === "ALL" ? "active" : ""}`}
+                onClick={() => setTenantFilter("ALL")}
+              >
+                <div className="finder-item-main">
+                  <span>🏢</span>
+                  <span className="finder-item-name">Semua Operator</span>
+                </div>
+                <span className="finder-item-meta">{tenantsList.length}</span>
+              </button>
+              {tenantsList.map(([tName, uCount]) => (
+                <button
+                  key={tName}
+                  type="button"
+                  className={`finder-tree-item ${tenantFilter === tName ? "active" : ""}`}
+                  onClick={() => setTenantFilter(tName)}
+                >
+                  <div className="finder-item-main">
+                    <span>📁</span>
+                    <span className="finder-item-name">{tName}</span>
+                  </div>
+                  <span className="finder-item-meta">{uCount}u</span>
+                </button>
+              ))}
             </div>
           </div>
+        </aside>
 
-          {showAddForm && (
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--surface-subtle)" }}>
-              <form className="analysis-inline-form" onSubmit={onSubmit}>
+        {/* CENTER PANE: High-Density Inventory & Structural Wind Load Table */}
+        <section className="finder-center-pane">
+          {/* Collapsible Add Device Card */}
+          {showAddForm && selectedSite && (
+            <div className="finder-table-card" style={{ padding: 14 }}>
+              <div style={{ marginBottom: 10, fontWeight: 600, fontSize: 13 }}>
+                Tambah Perangkat Baru ke Site <span className="mono">{selectedSite}</span>
+              </div>
+              <form onSubmit={handleAdd} className="grid-form">
                 <label>
-                  <span>Status</span>
-                  <select value={status} onChange={(e) => setStatus(e.target.value as DeviceStatus)}>
+                  Status
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as DeviceStatus)}
+                  >
                     <option value="EXISTING">EXISTING</option>
                     <option value="PROPOSED">PROPOSED</option>
                   </select>
                 </label>
                 <label>
-                  <span>Tenant</span>
-                  <select value={tenant} onChange={(e) => setTenant(e.target.value)}>
-                    {TENANTS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Kode perangkat (.lib)</span>
+                  Tenant
                   <input
-                    list="device-names"
+                    required
+                    value={tenant}
+                    onChange={(e) => setTenant(e.target.value)}
+                  />
+                </label>
+                <label className="span-2">
+                  Device Name (Kode .lib)
+                  <input
+                    required
+                    list="catalog-devices"
                     value={deviceName}
                     onChange={(e) => setDeviceName(e.target.value)}
-                    placeholder="cth. SEC-2.76"
-                    required
+                    placeholder="cth. SEC2.6, MW1.2, RRU-40"
                   />
-                  <datalist id="device-names">
-                    {names.data?.map((d) => (
-                      <option key={d.device_id} value={d.device_name}>
-                        {d.category} · EPA {d.epa_m2} m² · {d.mass_kg} kg
+                  <datalist id="catalog-devices">
+                    {catalog.map((c) => (
+                      <option key={c.device_name} value={c.device_name}>
+                        {c.category} — EPA {c.epa_m2.toFixed(3)} m²
                       </option>
                     ))}
                   </datalist>
                 </label>
                 <label>
-                  <span>Sisi / Leg</span>
+                  Mounting (.lib)
                   <input
-                    value={mounting}
-                    onChange={(e) => setMounting(e.target.value)}
-                    placeholder="LEG A / B / C / D"
+                    list="mounting-devices"
+                    value={mountingName}
+                    onChange={(e) => setMountingName(e.target.value)}
                   />
+                  <datalist id="mounting-devices">
+                    {mountingDevices.map((m) => (
+                      <option key={m.device_name} value={m.device_name} />
+                    ))}
+                  </datalist>
                 </label>
                 <label>
-                  <span>Elevasi Z (m)</span>
+                  Elevasi Z (m)
                   <input
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    max={500}
-                    value={elev}
-                    onChange={(e) => setElev(e.target.value)}
                     required
+                    type="number"
+                    step="any"
+                    value={elevZ}
+                    onChange={(e) => setElevZ(e.target.value)}
                   />
                 </label>
                 <label>
-                  <span>Qty</span>
+                  Qty
                   <input
+                    required
                     type="number"
                     min={1}
-                    max={999}
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
-                    required
-                    style={{ width: 68, minWidth: 68 }}
                   />
                 </label>
-                <button type="submit" className="btn primary" disabled={add.isPending}>
-                  {add.isPending ? "Menyimpan…" : "Simpan ke Site"}
-                </button>
+                <div className="form-actions">
+                  <button type="submit" className="btn">
+                    + Simpan ke Inventori
+                  </button>
+                </div>
               </form>
             </div>
           )}
 
-          {error && <div className="banner error" role="alert" style={{ margin: 12 }}>{error.message}</div>}
-
-          <div className="sheet-body" style={{ padding: 0 }}>
-            <div className="sr-legend-bar mono" style={{ background: "var(--surface)" }}>
-              <span>Menampilkan <strong>{filteredRows.length}</strong> dari {rows.length} baris perangkat</span>
-              <span>Filter Sisi: <strong>{faceFilter === "ALL" ? "Semua 4 Sisi (A/B/C/D)" : `Sisi ${faceFilter}`}</strong></span>
-              <span>Total EPA Terdaftar: <strong>{totalEpa.toFixed(2)} m²</strong></span>
-            </div>
-
-            {inventory.isLoading ? (
-              <div className="skeleton" style={{ margin: 16 }} />
-            ) : !filteredRows.length ? (
-              <p className="empty">Tidak ada perangkat yang cocok dengan filter saat ini.</p>
-            ) : (
-              <div className="table-wrap" style={{ maxHeight: 560, overflowY: "auto" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Status</th>
-                      <th>Sisi</th>
-                      <th>Tenant</th>
-                      <th>Perangkat (.lib)</th>
-                      <th>Dimensi P×L×T (m)</th>
-                      <th className="num">Elevasi Z (m)</th>
-                      <th className="num">Qty</th>
-                      <th className="num">EPA (m²)</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRows.map((d) => (
-                      <tr key={d.id}>
-                        <td>
-                          <span className={`badge ${d.status.toLowerCase()}`}>{d.status}</span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="badge face-pill"
-                            onClick={() => setFaceFilter(d.face ?? "A")}
-                            title={d.mounting_name ?? ""}
-                          >
-                            Sisi {d.face ?? "A"}
-                          </button>
-                        </td>
-                        <td>{d.tenant}</td>
-                        <td className="mono">
-                          <strong>{d.device_name}</strong>{" "}
-                          {!d.in_library && (
+          {/* Missing in .lib Smart Resolution Banner */}
+          {missingDevices.length > 0 && (
+            <div className="finder-table-card" style={{ borderColor: "var(--warn-bd)" }}>
+              <div className="finder-table-header" style={{ background: "var(--warn-bg)" }}>
+                <div>
+                  <h3 className="finder-table-title" style={{ fontSize: 13.5 }}>
+                    <span className="semantic-dot amber" />
+                    {missingDevices.length} Referensi Perangkat Belum Terdaftar di MTEL.lib
+                  </h3>
+                  <p className="finder-table-subtitle">
+                    Pilih saran kemiripan dimensi untuk menyelaraskan EPA & massa sebelum analisa struktur OpenSeesPy.
+                  </p>
+                </div>
+              </div>
+              <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {missingDevices.map((d) => {
+                  const topSugg = d.suggestions?.[0];
+                  return (
+                    <div
+                      key={d.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        background: "var(--surface-2)",
+                      }}
+                    >
+                      <div>
+                        <strong className="mono">{d.device_name}</strong>{" "}
+                        <span className="muted">
+                          ({d.tenant} · Z = {d.elev_z_m} m · Qty {d.qty})
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {topSugg && (
+                          <>
                             <button
                               type="button"
-                              className="badge warn"
-                              style={{ border: 0, cursor: "pointer" }}
-                              title={
-                                d.suggestions?.[0]
-                                  ? `Klik untuk simpan ke .lib dari referensi ${d.suggestions[0].device_name} (${d.suggestions[0].similarity_pct}%)`
-                                  : "Belum ada di .lib"
+                              className="btn secondary sm"
+                              onClick={() =>
+                                handleApplySuggestion(d.id, topSugg.device_name, "replace")
                               }
-                              onClick={() => {
-                                if (d.suggestions?.[0]) {
-                                  applySuggestion.mutate({
-                                    id: d.id,
-                                    target: d.suggestions[0].device_name,
-                                    mode: "clone_to_lib",
-                                  });
-                                } else {
-                                  setRegDev(d);
-                                }
-                              }}
                             >
-                              + Simpan .lib ({d.suggestions?.[0]?.similarity_pct ?? "?"}%)
+                              Gunakan {topSugg.device_name} (EPA {topSugg.epa_m2.toFixed(2)} m²)
                             </button>
-                          )}
-                        </td>
-                        <td className="mono muted">
-                          {(d.length_m ?? 0).toFixed(2)}×{(d.width_m ?? 0).toFixed(2)}×{(d.depth_m ?? 0).toFixed(2)}
-                        </td>
-                        <td className="num mono">{d.elev_z_m.toFixed(1)}</td>
-                        <td className="num mono">{d.qty}</td>
-                        <td className="num mono">{d.epa_m2 !== null ? d.epa_m2.toFixed(3) : "—"}</td>
-                        <td className="num">
-                          <button
-                            type="button"
-                            className="btn quiet danger"
-                            onClick={() => remove.mutate(d.id)}
-                          >
-                            Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <button
+                              type="button"
+                              className="btn sm"
+                              onClick={() =>
+                                handleApplySuggestion(d.id, topSugg.device_name, "clone_to_lib")
+                              }
+                            >
+                              Daftarkan '{d.device_name}' ke .lib
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Main Inventory & Structural Wind Load Table */}
+          <div className="finder-table-card">
+            <div className="finder-table-header">
+              <div>
+                <h2 className="finder-table-title">
+                  Tabel Inventori Perangkat & Kontribusi Beban Struktur (.twr)
+                </h2>
+                <p className="finder-table-subtitle">
+                  Menampilkan {filteredItems.length} baris perangkat · Total EPA ={" "}
+                  <strong>{summaryMetrics.totalEpa.toFixed(3)} m²</strong> · Total Massa ={" "}
+                  <strong>{summaryMetrics.totalMass.toFixed(1)} kg</strong>
+                </p>
+              </div>
+              <div className="seg-group">
+                {(["ALL", "EXISTING", "PROPOSED"] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    className={statusFilter === st ? "active" : ""}
+                    onClick={() => setStatusFilter(st)}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Face</th>
+                    <th>Tenant</th>
+                    <th>Kode .lib</th>
+                    <th>Mounting</th>
+                    <th className="num">Elev Z (m)</th>
+                    <th className="num">Qty</th>
+                    <th className="num">EPA/u (m²)</th>
+                    <th className="num">Massa/u (kg)</th>
+                    <th className="num">Total EPA (m²)</th>
+                    <th className="num">1.2D Gravity (kN)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={12} className="muted" style={{ textAlign: "center", padding: 24 }}>
+                        Tidak ada perangkat pada folder filter ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredItems.map((d) => {
+                      const totEpa = d.epa_m2 != null ? d.epa_m2 * d.qty : null;
+                      const totMassKg = d.mass_kg != null ? d.mass_kg * d.qty : null;
+                      const factDeadKn =
+                        totMassKg != null ? (totMassKg * 9.81 * 1.2) / 1000.0 : null;
+                      const dotClass = !d.in_library
+                        ? "red"
+                        : d.status === "EXISTING"
+                        ? "green"
+                        : "amber";
+
+                      return (
+                        <tr key={d.id} className={!d.in_library ? "row-warn" : ""}>
+                          <td>
+                            <span className={`semantic-dot ${dotClass}`} />
+                            <strong>{d.status}</strong>
+                          </td>
+                          <td>
+                            <span className="badge">Face {d.face}</span>
+                          </td>
+                          <td><strong>{d.tenant}</strong></td>
+                          <td className="mono">
+                            {d.device_name}
+                            {!d.in_library && (
+                              <span
+                                style={{
+                                  marginLeft: 6,
+                                  fontSize: 10.5,
+                                  color: "var(--danger)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                [Unmapped]
+                              </span>
+                            )}
+                          </td>
+                          <td className="mono">{d.mounting_name || "-"}</td>
+                          <td className="num">{d.elev_z_m.toFixed(2)}</td>
+                          <td className="num">{d.qty}</td>
+                          <td className="num">
+                            {d.epa_m2 != null ? d.epa_m2.toFixed(3) : "-"}
+                          </td>
+                          <td className="num">
+                            {d.mass_kg != null ? d.mass_kg.toFixed(1) : "-"}
+                          </td>
+                          <td className="num">
+                            <strong>{totEpa != null ? totEpa.toFixed(3) : "-"}</strong>
+                          </td>
+                          <td className="num">
+                            {factDeadKn != null ? factDeadKn.toFixed(3) : "-"}
+                          </td>
+                          <td className="num">
+                            <button
+                              type="button"
+                              className="btn danger sm"
+                              onClick={() => handleDelete(d.id)}
+                            >
+                              Hapus
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
+
+        {/* RIGHT PANE: 4-Sided Elevation Blueprint & Inventory Inspector */}
+        <aside className="finder-inspector-pane">
+          <div className="finder-pane-header">
+            <span className="finder-pane-title">4-Face Elevation Blueprint</span>
+            <span className="badge">H = {towerHeight} m</span>
+          </div>
+
+          <div className="finder-inspector-section">
+            <div className="finder-kv-grid">
+              <div className="finder-kv-box">
+                <span className="finder-kv-label">Total Unit</span>
+                <span className="finder-kv-val">{summaryMetrics.totalUnits} unit</span>
+              </div>
+              <div className="finder-kv-box">
+                <span className="finder-kv-label">Total EPA</span>
+                <span className="finder-kv-val">{summaryMetrics.totalEpa.toFixed(2)} m²</span>
+              </div>
+              <div className="finder-kv-box">
+                <span className="finder-kv-label">Total Massa</span>
+                <span className="finder-kv-val">{summaryMetrics.totalMass.toFixed(1)} kg</span>
+              </div>
+              <div className="finder-kv-box">
+                <span className="finder-kv-label">Status .lib</span>
+                <span className="finder-kv-val">
+                  {missingDevices.length === 0 ? "100% Valid" : `${missingDevices.length} Missing`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="finder-inspector-section">
+            <ElevationStrip
+              heightM={towerHeight}
+              topWidthM={activeTower?.top_width_m ?? 1.5}
+              baseWidthM={activeTower?.bot_width_m ?? 6.5}
+              devices={itemsWithFace}
+              activeFace={faceFilter}
+              onFaceChange={setFaceFilter}
+            />
+          </div>
+        </aside>
       </div>
     </div>
   );

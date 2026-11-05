@@ -5,18 +5,20 @@ import type { Geometry, Member3DStress, SiteDevice } from "../types";
 
 const Plot = createPlotlyComponent(Plotly);
 
+type DragMode3D = "turntable" | "orbit" | "pan" | "zoom";
+type CameraPreset = "ISO" | "TOP" | "FRONT" | "RIGHT" | "BACK" | "LEFT";
+
 function readTokens() {
   const s = getComputedStyle(document.documentElement);
   const v = (n: string) => s.getPropertyValue(n).trim();
   return {
-    primary: v("--primary") || "#2563eb",
+    primary: v("--primary") || "#0066cc",
     danger: v("--danger") || "#dc2626",
     muted: v("--muted") || "#64748b",
-    border: v("--border") || "#e2e8f0",
+    border: v("--border") || "#cbd5e1",
   };
 }
 
-/** Follows light/dark theme by reading the DBD tokens at render time. */
 function useThemeTokens() {
   const [tokens, setTokens] = useState(readTokens);
   useEffect(() => {
@@ -28,7 +30,11 @@ function useThemeTokens() {
   return tokens;
 }
 
-/** Build 3D cuboid wireframe edges + mesh triangles for a group of site devices using .lib dimensions. */
+/**
+ * Build 3D translucent mesh + wireframe edges for site devices
+ * strictly matching their .lib shape_type (BOX, CYL, SH1/SHIELDED/MW Dish)
+ * and exact .lib dimensions (Height=dim_m, Width=Af/dim_m, Depth=Asf/dim_m).
+ */
 function buildDevice3DGeometry(devices: SiteDevice[]) {
   const edgeX: (number | null)[] = [];
   const edgeY: (number | null)[] = [];
@@ -65,47 +71,160 @@ function buildDevice3DGeometry(devices: SiteDevice[]) {
     const cx = d.x_m ?? 1.1;
     const cy = d.y_m ?? 1.1;
     const cz = d.elev_z_m;
-    const h = Math.max(d.length_m ?? 0.8, 0.28);
-    const w = Math.max(d.width_m ?? 0.35, 0.22);
-    const dep = Math.max(d.depth_m ?? 0.2, 0.16);
+    const shape = (d.shape_type || "BOX").toUpperCase();
+
+    const h = Math.max(d.length_m ?? d.dim_m ?? 0.8, 0.12);
+    const w = Math.max(d.width_m ?? 0.35, 0.10);
+    const dep = Math.max(d.depth_m ?? 0.18, 0.08);
     const rad = ((d.azimuth_deg ?? 45) * Math.PI) / 180;
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    const localCorners = [
-      [-dep / 2, -w / 2, -h / 2],
-      [dep / 2, -w / 2, -h / 2],
-      [dep / 2, w / 2, -h / 2],
-      [-dep / 2, w / 2, -h / 2],
-      [-dep / 2, -w / 2, h / 2],
-      [dep / 2, -w / 2, h / 2],
-      [dep / 2, w / 2, h / 2],
-      [-dep / 2, w / 2, h / 2],
+    const toWorld = (lx: number, ly: number, lz: number): [number, number, number] => [
+      cx + lx * cosA - ly * sinA,
+      cy + lx * sinA + ly * cosA,
+      cz + lz,
     ];
 
-    const baseIdx = vx.length;
-    const worldCorners = localCorners.map(([lx, ly, lz]) => {
-      const wx = cx + lx * cosA - ly * sinA;
-      const wy = cy + lx * sinA + ly * cosA;
-      const wz = cz + lz;
-      vx.push(wx);
-      vy.push(wy);
-      vz.push(wz);
-      return [wx, wy, wz];
-    });
+    const isDish =
+      shape.includes("SH") ||
+      shape === "STD" ||
+      shape === "RAD" ||
+      d.device_name.toUpperCase().startsWith("MW") ||
+      d.device_name.toUpperCase().startsWith("SH");
+    const isCyl = shape === "CYL" && !isDish;
 
-    for (const [a, b, c] of boxTriangles) {
-      ti.push(baseIdx + a);
-      tj.push(baseIdx + b);
-      tk.push(baseIdx + c);
-    }
-    for (const [a, b] of boxEdges) {
-      edgeX.push(worldCorners[a][0], worldCorners[b][0], null);
-      edgeY.push(worldCorners[a][1], worldCorners[b][1], null);
-      edgeZ.push(worldCorners[a][2], worldCorners[b][2], null);
+    if (isDish) {
+      const N_SEG = 12;
+      const rDish = h / 2;
+      const halfDep = dep / 2;
+      const baseIdx = vx.length;
+      const frontRing: [number, number, number][] = [];
+      const backRing: [number, number, number][] = [];
+
+      for (let s = 0; s < N_SEG; s++) {
+        const theta = (2 * Math.PI * s) / N_SEG;
+        const ly = rDish * Math.cos(theta);
+        const lz = rDish * Math.sin(theta);
+        const wf = toWorld(halfDep, ly, lz);
+        const wb = toWorld(-halfDep, ly * 0.72, lz * 0.72);
+        frontRing.push(wf);
+        backRing.push(wb);
+        vx.push(wf[0], wb[0]);
+        vy.push(wf[1], wb[1]);
+        vz.push(wf[2], wb[2]);
+      }
+      const fCenter = toWorld(halfDep, 0, 0);
+      const bCenter = toWorld(-halfDep, 0, 0);
+      const fCenterIdx = vx.length;
+      vx.push(fCenter[0], bCenter[0]);
+      vy.push(fCenter[1], bCenter[1]);
+      vz.push(fCenter[2], bCenter[2]);
+      const bCenterIdx = fCenterIdx + 1;
+
+      for (let s = 0; s < N_SEG; s++) {
+        const next = (s + 1) % N_SEG;
+        const f0 = baseIdx + s * 2;
+        const b0 = f0 + 1;
+        const f1 = baseIdx + next * 2;
+        const b1 = f1 + 1;
+
+        ti.push(f0, f1, f0, b0);
+        tj.push(f1, b1, b0, f1);
+        tk.push(b0, b0, fCenterIdx, bCenterIdx);
+
+        edgeX.push(frontRing[s][0], frontRing[next][0], null);
+        edgeY.push(frontRing[s][1], frontRing[next][1], null);
+        edgeZ.push(frontRing[s][2], frontRing[next][2], null);
+
+        edgeX.push(backRing[s][0], backRing[next][0], null);
+        edgeY.push(backRing[s][1], backRing[next][1], null);
+        edgeZ.push(backRing[s][2], backRing[next][2], null);
+
+        if (s % 3 === 0) {
+          edgeX.push(frontRing[s][0], backRing[s][0], null);
+          edgeY.push(frontRing[s][1], backRing[s][1], null);
+          edgeZ.push(frontRing[s][2], backRing[s][2], null);
+        }
+      }
+    } else if (isCyl) {
+      const N_SEG = 10;
+      const rCyl = w / 2;
+      const halfH = h / 2;
+      const baseIdx = vx.length;
+      const topRing: [number, number, number][] = [];
+      const botRing: [number, number, number][] = [];
+
+      for (let s = 0; s < N_SEG; s++) {
+        const theta = (2 * Math.PI * s) / N_SEG;
+        const lx = rCyl * Math.cos(theta);
+        const ly = rCyl * Math.sin(theta);
+        const wt = toWorld(lx, ly, halfH);
+        const wb = toWorld(lx, ly, -halfH);
+        topRing.push(wt);
+        botRing.push(wb);
+        vx.push(wt[0], wb[0]);
+        vy.push(wt[1], wb[1]);
+        vz.push(wt[2], wb[2]);
+      }
+
+      for (let s = 0; s < N_SEG; s++) {
+        const next = (s + 1) % N_SEG;
+        const t0 = baseIdx + s * 2;
+        const b0 = t0 + 1;
+        const t1 = baseIdx + next * 2;
+        const b1 = t1 + 1;
+        ti.push(t0, t1);
+        tj.push(t1, b1);
+        tk.push(b0, b0);
+
+        edgeX.push(topRing[s][0], topRing[next][0], null);
+        edgeY.push(topRing[s][1], topRing[next][1], null);
+        edgeZ.push(topRing[s][2], topRing[next][2], null);
+
+        edgeX.push(botRing[s][0], botRing[next][0], null);
+        edgeY.push(botRing[s][1], botRing[next][1], null);
+        edgeZ.push(botRing[s][2], botRing[next][2], null);
+
+        if (s % 2 === 0) {
+          edgeX.push(topRing[s][0], botRing[s][0], null);
+          edgeY.push(topRing[s][1], botRing[s][1], null);
+          edgeZ.push(topRing[s][2], botRing[s][2], null);
+        }
+      }
+    } else {
+      const localCorners = [
+        [-dep / 2, -w / 2, -h / 2],
+        [dep / 2, -w / 2, -h / 2],
+        [dep / 2, w / 2, -h / 2],
+        [-dep / 2, w / 2, -h / 2],
+        [-dep / 2, -w / 2, h / 2],
+        [dep / 2, -w / 2, h / 2],
+        [dep / 2, w / 2, h / 2],
+        [-dep / 2, w / 2, h / 2],
+      ];
+
+      const baseIdx = vx.length;
+      const worldCorners = localCorners.map(([lx, ly, lz]) => {
+        const [wx, wy, wz] = toWorld(lx, ly, lz);
+        vx.push(wx);
+        vy.push(wy);
+        vz.push(wz);
+        return [wx, wy, wz];
+      });
+
+      for (const [a, b, c] of boxTriangles) {
+        ti.push(baseIdx + a);
+        tj.push(baseIdx + b);
+        tk.push(baseIdx + c);
+      }
+      for (const [a, b] of boxEdges) {
+        edgeX.push(worldCorners[a][0], worldCorners[b][0], null);
+        edgeY.push(worldCorners[a][1], worldCorners[b][1], null);
+        edgeZ.push(worldCorners[a][2], worldCorners[b][2], null);
+      }
     }
 
-    // Mounting arm from tower leg toward device center
     bracketX.push(cx * 0.72, cx, null);
     bracketY.push(cy * 0.72, cy, null);
     bracketZ.push(cz, cz, null);
@@ -114,16 +233,26 @@ function buildDevice3DGeometry(devices: SiteDevice[]) {
     my.push(cy);
     mz.push(cz);
     texts.push(
-      `<b>${d.device_name}</b> (${d.status})<br>` +
+      `<b>${d.device_name}</b> (${d.status} · Bentuk: ${shape})<br>` +
       `Tenant: ${d.tenant} · Sisi ${d.face ?? "A"} · Qty ${d.qty}<br>` +
       `Elevasi Z: ${cz.toFixed(2)} m · Azimut: ${(d.azimuth_deg ?? 0).toFixed(0)}°<br>` +
-      `Dimensi .lib: ${h.toFixed(2)} × ${w.toFixed(2)} × ${dep.toFixed(2)} m` +
-      (d.in_library ? `<br>EPA: ${(d.epa_m2 ?? 0).toFixed(3)} m²` : `<br>⚠ Belum ada di .lib`)
+      `<b>Dimensi Fisik .lib: T=${h.toFixed(2)}m × L=${w.toFixed(2)}m × D=${dep.toFixed(2)}m</b><br>` +
+      `Af=${(d.af_m2 ?? h * w).toFixed(3)} m² · Asf=${(d.asf_m2 ?? h * dep).toFixed(3)} m²` +
+      (d.in_library ? ` · EPA=${(d.epa_m2 ?? 0).toFixed(3)} m²` : `<br>⚠ Belum di Master .lib (Pendekatan Dimensi)`)
     );
   });
 
   return { edgeX, edgeY, edgeZ, bracketX, bracketY, bracketZ, vx, vy, vz, ti, tj, tk, mx, my, mz, texts };
 }
+
+const CAMERA_PRESETS: Record<CameraPreset, { eye: { x: number; y: number; z: number }; up: { x: number; y: number; z: number } }> = {
+  ISO:   { eye: { x: 2.0, y: 2.0, z: 0.65 }, up: { x: 0, y: 0, z: 1 } },
+  TOP:   { eye: { x: 0.01, y: 0.01, z: 3.2 }, up: { x: 0, y: 1, z: 0 } },
+  FRONT: { eye: { x: 2.4, y: 2.4, z: 0.45 }, up: { x: 0, y: 0, z: 1 } },
+  RIGHT: { eye: { x: 2.4, y: -2.4, z: 0.45 }, up: { x: 0, y: 0, z: 1 } },
+  BACK:  { eye: { x: -2.4, y: -2.4, z: 0.45 }, up: { x: 0, y: 0, z: 1 } },
+  LEFT:  { eye: { x: -2.4, y: 2.4, z: 0.45 }, up: { x: 0, y: 0, z: 1 } },
+};
 
 export default function TowerViewer({
   geometry,
@@ -138,9 +267,34 @@ export default function TowerViewer({
 }) {
   const t = useThemeTokens();
 
+  // Interactive 3D CAD state: Drag Mode (Turntable/Orbit/Pan/Zoom), Zoom Scale, Camera Preset, Grid toggle
+  const [dragMode, setDragMode] = useState<DragMode3D>("turntable");
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const [camPreset, setCamPreset] = useState<CameraPreset>("ISO");
+  const [showGrid, setShowGrid] = useState<boolean>(true);
+  const [viewRevision, setViewRevision] = useState<number>(1);
+
+  // Sync camera preset when highlightFace changes from parent toolbar
+  useEffect(() => {
+    if (highlightFace === "ALL") setCamPreset("ISO");
+    else if (highlightFace === "A") setCamPreset("FRONT");
+    else if (highlightFace === "B") setCamPreset("RIGHT");
+    else if (highlightFace === "C") setCamPreset("BACK");
+    else if (highlightFace === "D") setCamPreset("LEFT");
+    setViewRevision((r) => r + 1);
+  }, [highlightFace]);
+
   const supports = geometry.nodes.filter((n) => n.support);
   const axis = (title: string) => ({
-    title, color: t.muted, gridcolor: t.border, zerolinecolor: t.border, showbackground: false,
+    title: showGrid ? title : "",
+    color: t.muted,
+    gridcolor: t.border,
+    zerolinecolor: t.border,
+    showbackground: showGrid,
+    backgroundcolor: "rgba(241, 245, 249, 0.45)",
+    showgrid: showGrid,
+    zeroline: showGrid,
+    showticklabels: showGrid,
   });
 
   const visibleDevices =
@@ -158,7 +312,6 @@ export default function TowerViewer({
   const traces: any[] = [];
 
   if (memberStress && memberStress.length > 0) {
-    // MS Tower V6 Stress Ratio color bands
     const bands = [
       { key: "zero", label: "SR = 0.00", color: "#94a3b8", width: 1.8, match: (sr: number) => sr <= 0.001 },
       { key: "b50", label: "0.00 < SR < 0.50", color: "#2563eb", width: 2.4, match: (sr: number) => sr > 0.001 && sr < 0.5 },
@@ -228,7 +381,7 @@ export default function TowerViewer({
     }
     traces.push({
       type: "scatter3d", mode: "lines", x, y, z,
-      line: { width: 2, color: t.primary }, hoverinfo: "skip", name: "Members",
+      line: { width: 2.3, color: t.primary }, hoverinfo: "skip", name: "Members",
     });
   }
 
@@ -253,7 +406,7 @@ export default function TowerViewer({
         x: g.bracketX,
         y: g.bracketY,
         z: g.bracketZ,
-        line: { width: 3, color: "#64748b" },
+        line: { width: 2.5, color: "#64748b" },
         hoverinfo: "skip",
         name: `${label} bracket`,
       },
@@ -266,7 +419,7 @@ export default function TowerViewer({
         j: g.tj,
         k: g.tk,
         color: fillColor,
-        opacity: 0.78,
+        opacity: 0.36,
         flatshading: true,
         hoverinfo: "skip",
         name: label,
@@ -277,7 +430,8 @@ export default function TowerViewer({
         x: g.edgeX,
         y: g.edgeY,
         z: g.edgeZ,
-        line: { width: 2.5, color: edgeColor },
+        line: { width: 2.0, color: edgeColor },
+        opacity: 0.88,
         hoverinfo: "skip",
         name: `${label} outline`,
       },
@@ -287,7 +441,7 @@ export default function TowerViewer({
         x: g.mx,
         y: g.my,
         z: g.mz,
-        marker: { size: 3.5, color: edgeColor },
+        marker: { size: 3.5, color: edgeColor, opacity: 0.9 },
         text: g.texts,
         hovertemplate: "%{text}<extra></extra>",
         name: label,
@@ -299,37 +453,167 @@ export default function TowerViewer({
   addDeviceGroupTraces(prGeo, "#f59e0b", "#b45309", "PROPOSED (.lib)");
   addDeviceGroupTraces(msGeo, "#ef4444", "#991b1b", "Missing in .lib");
 
-  const cameraEyeByFace: Record<string, { x: number; y: number; z: number }> = {
-    ALL: { x: 2.1, y: 2.1, z: 0.65 },
-    A: { x: 2.4, y: 2.4, z: 0.55 },
-    B: { x: 2.4, y: -2.4, z: 0.55 },
-    C: { x: -2.4, y: -2.4, z: 0.55 },
-    D: { x: -2.4, y: 2.4, z: 0.55 },
+  const basePreset = CAMERA_PRESETS[camPreset] ?? CAMERA_PRESETS.ISO;
+  const activeCamera = {
+    eye: {
+      x: basePreset.eye.x * zoomScale,
+      y: basePreset.eye.y * zoomScale,
+      z: basePreset.eye.z * zoomScale,
+    },
+    up: basePreset.up,
+    center: { x: 0, y: 0, z: 0 },
+  };
+
+  const handleZoom = (factor: number) => {
+    setZoomScale((prev) => Math.min(Math.max(prev * factor, 0.35), 2.8));
+    setViewRevision((r) => r + 1);
+  };
+
+  const handleResetCamera = () => {
+    setZoomScale(1.0);
+    setCamPreset("ISO");
+    setDragMode("turntable");
+    setViewRevision((r) => r + 1);
   };
 
   return (
-    <Plot
-      style={{ width: "100%", height: "100%" }}
-      useResizeHandler
-      data={traces}
-      layout={{
-        autosize: true,
-        margin: { l: 0, r: 0, t: 0, b: 0 },
-        paper_bgcolor: "rgba(0,0,0,0)",
-        showlegend: false,
-        font: { family: "Inter, system-ui, sans-serif", size: 11 },
-        scene: {
-          aspectmode: "data",
-          xaxis: axis("X (m)"), yaxis: axis("Y (m)"), zaxis: axis("Z (m)"),
-          camera: { eye: cameraEyeByFace[highlightFace] ?? cameraEyeByFace.ALL },
-        },
-      }}
-      config={{
-        displaylogo: false,
-        responsive: true,
-        modeBarButtonsToRemove: ["zoom3d", "pan3d", "orbitRotation", "tableRotation", "resetCameraLastSave3d", "hoverClosest3d"],
-        toImageButtonOptions: { filename: "tower_3d_devices" },
-      }}
-    />
+    <div className="cad-viewport-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Left Docked 3D CAD Navigation & Camera Toolbar (Rotate / Orbit / Pan / Zoom / View Presets) */}
+      <div className="cad-3d-dock" role="toolbar" aria-label="Kontrol Navigasi 3D CAD">
+        <div className="cad-dock-section">
+          <span className="cad-dock-label">Mode Mouse</span>
+          <button
+            type="button"
+            className={`cad-dock-btn ${dragMode === "turntable" ? "active" : ""}`}
+            onClick={() => setDragMode("turntable")}
+            title="Putar 3D mengelilingi sumbu Z vertikal menara (Turntable)"
+          >
+            ↻ Putar Z
+          </button>
+          <button
+            type="button"
+            className={`cad-dock-btn ${dragMode === "orbit" ? "active" : ""}`}
+            onClick={() => setDragMode("orbit")}
+            title="Putar bebas 360 derajat (3D Orbit)"
+          >
+            🌐 Orbit 3D
+          </button>
+          <button
+            type="button"
+            className={`cad-dock-btn ${dragMode === "pan" ? "active" : ""}`}
+            onClick={() => setDragMode("pan")}
+            title="Geser posisi kamera (Pan)"
+          >
+            ✥ Pan / Geser
+          </button>
+          <button
+            type="button"
+            className={`cad-dock-btn ${dragMode === "zoom" ? "active" : ""}`}
+            onClick={() => setDragMode("zoom")}
+            title="Perbesar / perkecil dengan drag mouse"
+          >
+            🔍 Zoom Drag
+          </button>
+        </div>
+
+        <div className="cad-dock-divider" />
+
+        <div className="cad-dock-section">
+          <span className="cad-dock-label">Kamera</span>
+          <div className="cad-dock-row">
+            <button
+              type="button"
+              className="cad-dock-icon-btn"
+              onClick={() => handleZoom(0.8)}
+              title="Perbesar (Zoom In)"
+            >
+              ＋
+            </button>
+            <button
+              type="button"
+              className="cad-dock-icon-btn"
+              onClick={() => handleZoom(1.25)}
+              title="Perkecil (Zoom Out)"
+            >
+              －
+            </button>
+            <button
+              type="button"
+              className="cad-dock-icon-btn"
+              onClick={handleResetCamera}
+              title="Reset tampilan kamera ke Isometrik"
+            >
+              ⌂
+            </button>
+          </div>
+          <div className="cad-dock-grid">
+            {(["ISO", "TOP", "FRONT", "RIGHT"] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`cad-dock-mini ${camPreset === preset ? "active" : ""}`}
+                onClick={() => {
+                  setCamPreset(preset);
+                  setViewRevision((r) => r + 1);
+                }}
+              >
+                {preset === "ISO" ? "Iso" : preset === "TOP" ? "Atas" : preset === "FRONT" ? "Depan" : "Kanan"}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className={`cad-dock-btn ${showGrid ? "active" : ""}`}
+            onClick={() => setShowGrid((v) => !v)}
+            style={{ marginTop: 2 }}
+          >
+            {showGrid ? "⊞ Grid: ON" : "⊞ Grid: OFF"}
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Interactive CAD Controls Hint Pill */}
+      <div className="cad-viewport-hud">
+        <span>
+          Mode: <strong>{dragMode === "turntable" ? "Putar Sumbu Z" : dragMode === "orbit" ? "Orbit 3D Bebas" : dragMode === "pan" ? "Pan (Geser)" : "Zoom"}</strong>
+        </span>
+        <span className="telemetry-sep" />
+        <span>Klik Kiri + Drag: <strong>{dragMode.toUpperCase()}</strong></span>
+        <span className="telemetry-sep" />
+        <span>Klik Kanan + Drag: <strong>PAN</strong></span>
+        <span className="telemetry-sep" />
+        <span>Scroll: <strong>ZOOM</strong></span>
+      </div>
+
+      <Plot
+        style={{ width: "100%", height: "100%" }}
+        useResizeHandler
+        data={traces}
+        layout={{
+          autosize: true,
+          margin: { l: 0, r: 0, t: 0, b: 0 },
+          paper_bgcolor: "rgba(0,0,0,0)",
+          showlegend: false,
+          dragmode: dragMode,
+          uirevision: `${dragMode}-${viewRevision}`,
+          font: { family: "Inter, system-ui, sans-serif", size: 11 },
+          scene: {
+            aspectmode: "data",
+            dragmode: dragMode,
+            xaxis: axis("X (m)"),
+            yaxis: axis("Y (m)"),
+            zaxis: axis("Z (m)"),
+            camera: activeCamera,
+          },
+        }}
+        config={{
+          displaylogo: false,
+          responsive: true,
+          scrollZoom: true,
+          displayModeBar: true,
+          toImageButtonOptions: { filename: "tower_3d_devices" },
+        }}
+      />
+    </div>
   );
 }
